@@ -29,9 +29,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .eq('role', 'admin')
                 .maybeSingle();
 
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+            // Keep a timeout so the UI doesn't hang forever if the DB is unreachable,
+            // but treat timeout as a real error (instead of silently returning "not admin").
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000));
 
-            const { data, error }: any = await Promise.race([queryPromise, timeoutPromise]).catch(() => ({ data: null, error: null }));
+            const { data, error }: any = await Promise.race([queryPromise, timeoutPromise]).catch((e) => ({ data: null, error: e }));
 
             if (error) {
                 console.error('AuthContext Debug: Error checking role:', error);
@@ -51,12 +53,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const init = async () => {
             console.log('AuthContext Debug: Initializing...');
             try {
-                // Get session but don't hang the whole app if it takes long
-                const sessionPromise = supabase.auth.getSession();
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
-
-                const res: any = await Promise.race([sessionPromise, timeoutPromise]).catch(() => ({ data: { session: null } }));
-                const currentSession = res?.data?.session;
+                // getSession is local/fast in normal conditions; timing it out can cause
+                // false "logged out" states and route flicker (dashboard -> login -> dashboard).
+                const {
+                    data: { session: currentSession },
+                } = await supabase.auth.getSession();
 
                 if (!mounted) return;
 
