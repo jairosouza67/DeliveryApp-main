@@ -85,8 +85,6 @@ const Login = () => {
         title: "Login realizado com sucesso!",
         description: "Bem-vindo de volta.",
       });
-
-      navigate(from, { replace: true });
     } catch (error: any) {
       let errorMessage = error.message || JSON.stringify(error);
 

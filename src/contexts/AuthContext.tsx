@@ -52,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const init = async () => {
             console.log('AuthContext Debug: Initializing...');
+            if (mounted) setLoading(true);
             try {
                 // getSession is local/fast in normal conditions; timing it out can cause
                 // false "logged out" states and route flicker (dashboard -> login -> dashboard).
@@ -83,20 +84,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!mounted) return;
             console.log('AuthContext Debug: Event:', event, 'Session:', !!currentSession);
 
+            // Avoid intermediate renders where loading=false but user/isAdmin haven't updated yet.
+            setLoading(true);
+
             setSession(currentSession);
             setUser(currentSession?.user ?? null);
 
-            if (currentSession?.user) {
-                const isUserAdmin = await checkRole(currentSession.user.id);
-                if (mounted) {
-                    setIsAdmin(isUserAdmin);
-                    setLoading(false);
+            try {
+                if (currentSession?.user) {
+                    const isUserAdmin = await checkRole(currentSession.user.id);
+                    if (mounted) setIsAdmin(isUserAdmin);
+                } else {
+                    if (mounted) setIsAdmin(false);
                 }
-            } else {
-                if (mounted) {
-                    setIsAdmin(false);
-                    setLoading(false);
-                }
+            } finally {
+                if (mounted) setLoading(false);
             }
         });
 
