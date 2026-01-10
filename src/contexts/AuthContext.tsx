@@ -110,10 +110,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const signOut = async () => {
+        setLoading(true);
         try {
-            await supabase.auth.signOut();
+            // Prefer local sign-out to avoid failures when offline/slow network.
+            // Admin guards rely on local session state, so this prevents "logout doesn't work".
+            await supabase.auth.signOut({ scope: 'local' });
         } catch (error) {
             console.error('Error signing out:', error);
+        } finally {
+            // Ensure UI updates immediately even if the auth event is delayed.
+            setSession(null);
+            setUser(null);
+            setIsAdmin(false);
+            setLoading(false);
         }
     };
 
