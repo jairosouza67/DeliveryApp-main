@@ -25,7 +25,7 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 console.log('Supabase Client: Initializing with URL:', SUPABASE_URL);
 console.log('Supabase Client: Key present:', !!SUPABASE_PUBLISHABLE_KEY);
 
-if (SUPABASE_URL_RAW && SUPABASE_URL && SUPABASE_URL !== SUPABASE_URL_RAW) {
+if (import.meta.env.DEV && SUPABASE_URL_RAW && SUPABASE_URL && SUPABASE_URL !== SUPABASE_URL_RAW) {
   console.warn('Supabase Client: Normalized VITE_SUPABASE_URL (adicione https://... na sua .env para evitar este aviso).');
 }
 

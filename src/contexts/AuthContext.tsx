@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
@@ -13,14 +13,76 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const ROLE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+const ROLE_TIMEOUT_MS = 2500;
+
+type RoleCacheEntry = {
+    isAdmin: boolean;
+    t: number;
+};
+
+const roleCacheKey = (userId: string) => `auth:role:${userId}`;
+
+const readRoleCache = (userId: string): RoleCacheEntry | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = window.localStorage.getItem(roleCacheKey(userId));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as RoleCacheEntry;
+        if (!parsed || typeof parsed !== 'object') return null;
+        if (typeof parsed.isAdmin !== 'boolean') return null;
+        if (typeof parsed.t !== 'number') return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
+const writeRoleCache = (userId: string, isAdmin: boolean) => {
+    if (typeof window === 'undefined') return;
+    try {
+        const entry: RoleCacheEntry = { isAdmin, t: Date.now() };
+        window.localStorage.setItem(roleCacheKey(userId), JSON.stringify(entry));
+    } catch {
+        // ignore
+    }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
 
+    const roleChecksInFlight = useRef<Map<string, Promise<boolean>>>(new Map());
+
+    const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+    const shouldCheckRoleForEvent = (event: string) => {
+        // Evita revalidar role em eventos frequentes como TOKEN_REFRESHED.
+        return event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED';
+    };
+
     const checkRole = async (userId: string) => {
         console.log('AuthContext Debug: checkRole started for:', userId);
+
+        const cached = readRoleCache(userId);
+        const cachedFresh = cached ? (Date.now() - cached.t) <= ROLE_CACHE_TTL_MS : false;
+
+        // Offline: não tente bater na API (vai dar timeout). Usa cache se houver.
+        if (isOffline()) {
+            if (cached) return cached.isAdmin;
+            return false;
+        }
+
+        // Cache recente: evita refetch em cada "volta pra aba".
+        if (cachedFresh) {
+            return cached!.isAdmin;
+        }
+
+        const existing = roleChecksInFlight.current.get(userId);
+        if (existing) return existing;
+
         try {
             const queryPromise = supabase
                 .from('user_roles')
@@ -29,21 +91,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .eq('role', 'admin')
                 .maybeSingle();
 
-            // Keep a timeout so the UI doesn't hang forever if the DB is unreachable,
-            // but treat timeout as a real error (instead of silently returning "not admin").
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000));
+            const timeoutSentinel = Symbol('timeout');
+            const timeoutPromise = new Promise<typeof timeoutSentinel>((resolve) =>
+                setTimeout(() => resolve(timeoutSentinel), ROLE_TIMEOUT_MS),
+            );
 
-            const { data, error }: any = await Promise.race([queryPromise, timeoutPromise]).catch((e) => ({ data: null, error: e }));
+            const inFlight = (async () => {
+                const raced = await Promise.race([queryPromise, timeoutPromise]);
+                if (raced === timeoutSentinel) {
+                    console.warn('AuthContext Debug: Role check timeout (usando cache/false)');
+                    return cached?.isAdmin ?? false;
+                }
 
-            if (error) {
-                console.error('AuthContext Debug: Error checking role:', error);
-                return false;
-            }
-            console.log('AuthContext Debug: checkRole finished. Data:', data);
-            return !!data;
+                const { data, error } = raced as any;
+                if (error) {
+                    // Quando o usuário está sem internet, isso costuma virar ERR_INTERNET_DISCONNECTED.
+                    console.warn('AuthContext Debug: Error checking role:', error);
+                    return cached?.isAdmin ?? false;
+                }
+
+                const isUserAdmin = !!data;
+                writeRoleCache(userId, isUserAdmin);
+                console.log('AuthContext Debug: checkRole finished. Data:', data);
+                return isUserAdmin;
+            })().finally(() => {
+                roleChecksInFlight.current.delete(userId);
+            });
+
+            roleChecksInFlight.current.set(userId, inFlight);
+            return await inFlight;
         } catch (e) {
-            console.error('AuthContext Debug: Role check exception:', e);
-            return false;
+            console.warn('AuthContext Debug: Role check exception:', e);
+            return cached?.isAdmin ?? false;
         }
     };
 
@@ -67,6 +146,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(currentSession?.user ?? null);
 
                 if (currentSession?.user) {
+                    const cached = readRoleCache(currentSession.user.id);
+                    if (cached && mounted) setIsAdmin(cached.isAdmin);
                     const isUserAdmin = await checkRole(currentSession.user.id);
                     if (mounted) setIsAdmin(isUserAdmin);
                 }
@@ -84,21 +165,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!mounted) return;
             console.log('AuthContext Debug: Event:', event, 'Session:', !!currentSession);
 
-            // Avoid intermediate renders where loading=false but user/isAdmin haven't updated yet.
-            setLoading(true);
+            // Não trave o app inteiro em eventos frequentes (ex.: TOKEN_REFRESHED)
+            const willCheckRole = !!currentSession?.user && shouldCheckRoleForEvent(event);
+            if (willCheckRole) setLoading(true);
 
             setSession(currentSession);
             setUser(currentSession?.user ?? null);
 
             try {
                 if (currentSession?.user) {
-                    const isUserAdmin = await checkRole(currentSession.user.id);
-                    if (mounted) setIsAdmin(isUserAdmin);
+                    const cached = readRoleCache(currentSession.user.id);
+                    if (cached && mounted) setIsAdmin(cached.isAdmin);
+
+                    if (willCheckRole) {
+                        const isUserAdmin = await checkRole(currentSession.user.id);
+                        if (mounted) setIsAdmin(isUserAdmin);
+                    }
                 } else {
                     if (mounted) setIsAdmin(false);
                 }
             } finally {
-                if (mounted) setLoading(false);
+                if (mounted && willCheckRole) setLoading(false);
             }
         });
 
