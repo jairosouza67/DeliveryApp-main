@@ -9,10 +9,10 @@ import { Link } from "react-router-dom";
 import { MobileNav } from "@/components/MobileNav";
 import { Flame, Gift, ArrowRight, Beer, Wine, Martini } from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { ProductCard } from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
+import { getFeaturedProductsCached, refreshFeaturedProducts, type ProductRecord } from "@/lib/productsApi";
 
 interface Product {
   id: string;
@@ -29,21 +29,26 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchFeaturedProducts();
-  }, []);
+    let cancelled = false;
 
-  const fetchFeaturedProducts = async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .eq("in_stock", true)
-      .limit(4)
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      setFeaturedProducts(data);
+    const cached = getFeaturedProductsCached();
+    if (cached && cached.length > 0) {
+      setFeaturedProducts(cached as Product[]);
     }
-  };
+
+    refreshFeaturedProducts()
+      .then((fresh) => {
+        if (cancelled) return;
+        setFeaturedProducts(fresh as Product[]);
+      })
+      .catch(() => {
+        // Silencioso: home continua funcionando mesmo sem destaques.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleAddToCart = (product: Product) => {
     addItem({

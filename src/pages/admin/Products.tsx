@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Package, Clock } from "lucide-react";
+import { getAllProductsCached, invalidateProductsCache, refreshAllProducts } from "@/lib/productsApi";
 
 interface Product {
   id: string;
@@ -39,19 +40,22 @@ const Products = () => {
   }, []);
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("name");
+    const cached = getAllProductsCached();
+    if (cached && cached.length > 0) {
+      setProducts(cached as Product[]);
+    }
 
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar os produtos.",
-      });
-    } else {
-      setProducts(data || []);
+    try {
+      const fresh = await refreshAllProducts();
+      setProducts(fresh as Product[]);
+    } catch {
+      if (!cached) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar os produtos.",
+        });
+      }
     }
   };
 
@@ -75,6 +79,7 @@ const Products = () => {
           title: "Sucesso",
           description: "Produto atualizado com sucesso.",
         });
+        invalidateProductsCache();
         fetchProducts();
         closeDialog();
       }
@@ -92,6 +97,7 @@ const Products = () => {
           title: "Sucesso",
           description: "Produto adicionado com sucesso.",
         });
+        invalidateProductsCache();
         fetchProducts();
         closeDialog();
       }
@@ -114,6 +120,7 @@ const Products = () => {
         title: "Sucesso",
         description: "Produto excluído com sucesso.",
       });
+      invalidateProductsCache();
       fetchProducts();
     }
   };

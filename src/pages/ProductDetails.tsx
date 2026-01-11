@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProductCard } from "@/components/ProductCard";
-import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
+import {
+    getAllProductsCached,
+    refreshAllProducts,
+    selectRelatedFromAll,
+    type ProductRecord,
+} from "@/lib/productsApi";
 import {
     ArrowLeft,
     Plus,
@@ -50,34 +55,42 @@ const ProductDetails = () => {
 
     const fetchProduct = async () => {
         setLoading(true);
+        const cachedAll = getAllProductsCached();
+        const cachedProduct = cachedAll?.find((p) => p.id === id);
+        if (cachedProduct) {
+            setProduct(cachedProduct as unknown as Product);
+            setRelatedProducts(
+                selectRelatedFromAll(cachedAll as ProductRecord[], {
+                    type: cachedProduct.type,
+                    excludeId: cachedProduct.id,
+                    limit: 4,
+                }) as unknown as Product[],
+            );
+            setLoading(false);
+        }
+
         try {
-            // Fetch the product
-            const { data, error } = await supabase
-                .from("products")
-                .select("*")
-                .eq("id", id)
-                .single();
+            // Atualiza (ou busca pela 1ª vez) via lista completa (c/ cache)
+            const all = await refreshAllProducts();
+            const fresh = all.find((p) => p.id === id) as unknown as Product | undefined;
+            setProduct(fresh ?? null);
 
-            if (error) throw error;
-
-            setProduct(data);
-
-            // Fetch related products (same category, different id)
-            if (data) {
-                const { data: related } = await supabase
-                    .from("products")
-                    .select("*")
-                    .eq("type", data.type)
-                    .neq("id", data.id)
-                    .eq("in_stock", true)
-                    .limit(4);
-
-                setRelatedProducts(related || []);
+            if (fresh) {
+                setRelatedProducts(
+                    selectRelatedFromAll(all, {
+                        type: fresh.type,
+                        excludeId: fresh.id,
+                        limit: 4,
+                    }) as unknown as Product[],
+                );
+            } else {
+                setRelatedProducts([]);
             }
         } catch (error) {
             console.error("Error fetching product:", error);
             toast.error("Erro ao carregar produto");
         } finally {
+            // Se já mostramos do cache acima, evitamos flicker desnecessário.
             setLoading(false);
         }
     };

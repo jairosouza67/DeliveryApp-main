@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { MobileNav } from "@/components/MobileNav";
 import { useSearchParams } from "react-router-dom";
+import { getAllProductsCached, refreshAllProducts, type ProductRecord } from "@/lib/productsApi";
 
 interface Product {
     id: string;
@@ -45,7 +45,35 @@ const Catalogo = () => {
     const { toast } = useToast();
 
     useEffect(() => {
-        fetchProducts();
+        let cancelled = false;
+
+        const cached = getAllProductsCached();
+        if (cached && cached.length > 0) {
+            setProducts(cached as Product[]);
+            setLoading(false);
+        }
+
+        refreshAllProducts()
+            .then((fresh) => {
+                if (cancelled) return;
+                setProducts(fresh as Product[]);
+                setLoading(false);
+            })
+            .catch(() => {
+                if (cancelled) return;
+                if (!cached) {
+                    toast({
+                        variant: "destructive",
+                        title: "Erro",
+                        description: "Não foi possível carregar os produtos.",
+                    });
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     useEffect(() => {
@@ -55,35 +83,15 @@ const Catalogo = () => {
         }
     }, [searchParams]);
 
-    const fetchProducts = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from("products")
-            .select("*")
-            .order("name");
-
-        if (error) {
-            toast({
-                variant: "destructive",
-                title: "Erro",
-                description: "Não foi possível carregar os produtos.",
-            });
-            setLoading(false);
-            return;
-        }
-
-        setProducts(data || []);
-        setLoading(false);
-    };
-
     const handleCategoryChange = (categoryId: string) => {
         setSelectedCategory(categoryId);
+        const next = new URLSearchParams(searchParams);
         if (categoryId === "todos") {
-            searchParams.delete("categoria");
+            next.delete("categoria");
         } else {
-            searchParams.set("categoria", categoryId);
+            next.set("categoria", categoryId);
         }
-        setSearchParams(searchParams);
+        setSearchParams(next);
     };
 
     const filteredProducts = products.filter((product) => {

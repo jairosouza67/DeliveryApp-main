@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { MobileNav } from "@/components/MobileNav";
+import { getAllProductsCached, refreshAllProducts } from "@/lib/productsApi";
 
 interface Product {
   id: string;
@@ -29,26 +29,31 @@ const Produtos = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    let cancelled = false;
 
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("name");
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar os produtos.",
-      });
-      return;
+    const cached = getAllProductsCached();
+    if (cached && cached.length > 0) {
+      setProducts(cached as Product[]);
     }
 
-    setProducts(data || []);
-  };
+    refreshAllProducts()
+      .then((fresh) => {
+        if (cancelled) return;
+        setProducts(fresh as Product[]);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar os produtos.",
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
