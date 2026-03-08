@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,24 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Package, Clock } from "lucide-react";
-import { getAllProductsCached, invalidateProductsCache, refreshAllProducts } from "@/lib/productsApi";
-
-interface Product {
-  id: string;
-  name: string;
-  type: string;
-  price: number;
-  in_stock: boolean;
-  description: string | null;
-  created_at: string;
-}
+import { Plus, Pencil, Trash2, Package } from "lucide-react";
+import {
+  useCreateProductMutation,
+  useDeleteProductMutation,
+  useProductsQuery,
+  useUpdateProductMutation,
+  type ProductRecord,
+} from "@/lib/admin";
 
 const Products = () => {
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>([]);
+  const { data: products = [] } = useProductsQuery();
+  const createProductMutation = useCreateProductMutation();
+  const updateProductMutation = useUpdateProductMutation();
+  const deleteProductMutation = useDeleteProductMutation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     type: "",
@@ -34,72 +32,38 @@ const Products = () => {
     in_stock: true,
     description: "",
   });
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    const cached = getAllProductsCached();
-    if (cached && cached.length > 0) {
-      setProducts(cached as Product[]);
-    }
-
-    try {
-      const fresh = await refreshAllProducts();
-      setProducts(fresh as Product[]);
-    } catch {
-      if (!cached) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível carregar os produtos.",
-        });
-      }
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (editingProduct) {
-      const { error } = await supabase
-        .from("products")
-        .update(formData)
-        .eq("id", editingProduct.id);
-
-      if (error) {
+      try {
+        await updateProductMutation.mutateAsync({ id: editingProduct.id, payload: formData });
+        toast({
+          title: "Sucesso",
+          description: "Produto atualizado com sucesso.",
+        });
+        closeDialog();
+      } catch {
         toast({
           variant: "destructive",
           title: "Erro",
           description: "Não foi possível atualizar o produto.",
         });
-      } else {
-        toast({
-          title: "Sucesso",
-          description: "Produto atualizado com sucesso.",
-        });
-        invalidateProductsCache();
-        fetchProducts();
-        closeDialog();
       }
     } else {
-      const { error } = await supabase.from("products").insert([formData]);
-
-      if (error) {
+      try {
+        await createProductMutation.mutateAsync(formData);
+        toast({
+          title: "Sucesso",
+          description: "Produto adicionado com sucesso.",
+        });
+        closeDialog();
+      } catch {
         toast({
           variant: "destructive",
           title: "Erro",
           description: "Não foi possível adicionar o produto.",
         });
-      } else {
-        toast({
-          title: "Sucesso",
-          description: "Produto adicionado com sucesso.",
-        });
-        invalidateProductsCache();
-        fetchProducts();
-        closeDialog();
       }
     }
   };
@@ -107,25 +71,22 @@ const Products = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este produto?")) return;
 
-    const { error } = await supabase.from("products").delete().eq("id", id);
-
-    if (error) {
+    try {
+      await deleteProductMutation.mutateAsync(id);
+      toast({
+        title: "Sucesso",
+        description: "Produto excluído com sucesso.",
+      });
+    } catch {
       toast({
         variant: "destructive",
         title: "Erro",
         description: "Não foi possível excluir o produto.",
       });
-    } else {
-      toast({
-        title: "Sucesso",
-        description: "Produto excluído com sucesso.",
-      });
-      invalidateProductsCache();
-      fetchProducts();
     }
   };
 
-  const openDialog = (product?: Product) => {
+  const openDialog = (product?: ProductRecord) => {
     if (product) {
       setEditingProduct(product);
       setFormData({

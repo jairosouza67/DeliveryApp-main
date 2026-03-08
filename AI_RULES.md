@@ -1,4 +1,4 @@
-# AI_RULES.md - Arseg Extintores App
+# AI_RULES.md - BebeMais App
 
 ## Tech Stack
 
@@ -36,7 +36,7 @@
 
 ### Routing & Navigation
 - **Use React Router DOM** exclusively for routing
-- **Route definitions** should be in `src/App.tsx`
+- **Route definitions** should live in `src/app/routes/`
 - **Pages** should be placed in `src/pages/` with corresponding components
 - **Use `useNavigate`** for programmatic navigation
 - **Always include proper 404 handling** with a `NotFound` component
@@ -61,6 +61,7 @@
 - **Use consistent icon sizes** (typically h-4 w-4, h-5 w-5, or h-6 w-6)
 
 ### File Organization
+- **Bootstrap files** go in `src/app/`
 - **Pages** go in `src/pages/`
 - **Components** go in `src/components/`
 - **Hooks** go in `src/hooks/`
@@ -68,6 +69,12 @@
 - **Utils** go in `src/lib/`
 - **Types** go in `src/integrations/supabase/types.ts`
 - **Assets** go in `src/assets/`
+
+### Architecture
+- **Keep `src/app/` thin** - only providers, routing, and app wiring
+- **Pages orchestrate screens** and should stay focused on user flow
+- **Move reusable async logic** and shared data access into `src/lib/`
+- **Treat `src/integrations/` as the external boundary** for Supabase clients and generated types
 
 ### Code Quality
 - **Use TypeScript** for all new code

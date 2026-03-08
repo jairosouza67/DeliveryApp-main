@@ -36,22 +36,17 @@ const categories = [
 const Catalogo = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState(
-        searchParams.get("categoria") || "todos"
-    );
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [products, setProducts] = useState<Product[]>(() => {
+        return (getAllProductsCached() as Product[] | null) ?? [];
+    });
+    const [loading, setLoading] = useState(products.length === 0);
     const { addItem } = useCart();
     const { toast } = useToast();
+    const selectedCategory = searchParams.get("categoria") || "todos";
 
     useEffect(() => {
         let cancelled = false;
-
-        const cached = getAllProductsCached();
-        if (cached && cached.length > 0) {
-            setProducts(cached as Product[]);
-            setLoading(false);
-        }
+        const hasInitialProducts = products.length > 0;
 
         refreshAllProducts()
             .then((fresh) => {
@@ -61,7 +56,7 @@ const Catalogo = () => {
             })
             .catch(() => {
                 if (cancelled) return;
-                if (!cached) {
+                if (!hasInitialProducts) {
                     toast({
                         variant: "destructive",
                         title: "Erro",
@@ -74,17 +69,9 @@ const Catalogo = () => {
         return () => {
             cancelled = true;
         };
-    }, []);
-
-    useEffect(() => {
-        const categoria = searchParams.get("categoria");
-        if (categoria) {
-            setSelectedCategory(categoria);
-        }
-    }, [searchParams]);
+    }, [products.length, toast]);
 
     const handleCategoryChange = (categoryId: string) => {
-        setSelectedCategory(categoryId);
         const next = new URLSearchParams(searchParams);
         if (categoryId === "todos") {
             next.delete("categoria");

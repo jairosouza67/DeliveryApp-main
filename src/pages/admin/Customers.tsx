@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,24 +9,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2 } from "lucide-react";
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  cpf_cnpj: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  notes: string | null;
-}
+import {
+  useCreateCustomerMutation,
+  useCustomersQuery,
+  useDeleteCustomerMutation,
+  useUpdateCustomerMutation,
+  type CustomerRecord,
+} from "@/lib/admin";
 
 const Customers = () => {
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const { data: customers = [] } = useCustomersQuery();
+  const createCustomerMutation = useCreateCustomerMutation();
+  const updateCustomerMutation = useUpdateCustomerMutation();
+  const deleteCustomerMutation = useDeleteCustomerMutation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<CustomerRecord | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -38,74 +35,45 @@ const Customers = () => {
     state: "",
     notes: "",
   });
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
-    const { data, error } = await supabase
-      .from("customers")
-      .select("*")
-      .order("name");
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar os clientes.",
-      });
-    } else {
-      setCustomers(data || []);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (editingCustomer) {
-      const { error } = await supabase
-        .from("customers")
-        .update(formData)
-        .eq("id", editingCustomer.id);
-
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível atualizar o cliente.",
-        });
-      } else {
+      try {
+        await updateCustomerMutation.mutateAsync({ id: editingCustomer.id, payload: formData });
         toast({
           title: "Sucesso",
           description: "Cliente atualizado com sucesso.",
         });
         setIsDialogOpen(false);
         resetForm();
-        fetchCustomers();
-      }
-    } else {
-      const { error } = await supabase.from("customers").insert([formData]);
-
-      if (error) {
+      } catch {
         toast({
           variant: "destructive",
           title: "Erro",
-          description: "Não foi possível cadastrar o cliente.",
+          description: "Não foi possível atualizar o cliente.",
         });
-      } else {
+      }
+    } else {
+      try {
+        await createCustomerMutation.mutateAsync(formData);
         toast({
           title: "Sucesso",
           description: "Cliente cadastrado com sucesso.",
         });
         setIsDialogOpen(false);
         resetForm();
-        fetchCustomers();
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível cadastrar o cliente.",
+        });
       }
     }
   };
 
-  const handleEdit = (customer: Customer) => {
+  const handleEdit = (customer: CustomerRecord) => {
     setEditingCustomer(customer);
     setFormData({
       name: customer.name,
@@ -123,20 +91,18 @@ const Customers = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
 
-    const { error } = await supabase.from("customers").delete().eq("id", id);
-
-    if (error) {
+    try {
+      await deleteCustomerMutation.mutateAsync(id);
+      toast({
+        title: "Sucesso",
+        description: "Cliente excluído com sucesso.",
+      });
+    } catch {
       toast({
         variant: "destructive",
         title: "Erro",
         description: "Não foi possível excluir o cliente.",
       });
-    } else {
-      toast({
-        title: "Sucesso",
-        description: "Cliente excluído com sucesso.",
-      });
-      fetchCustomers();
     }
   };
 

@@ -34,6 +34,11 @@ type LoginForm = z.infer<typeof loginSchema>;
 type SignupForm = z.infer<typeof signupSchema>;
 type ResetForm = z.infer<typeof resetSchema>;
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  return "Ocorreu um erro inesperado.";
+};
+
 const Login = () => {
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [loading, setLoading] = useState(false);
@@ -65,17 +70,12 @@ const Login = () => {
   const handleLogin = async (data: LoginForm) => {
     setLoading(true);
     try {
-      // Try to sign in
-      const res: any = await (supabase as any).auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
-      // Log full response for debugging
-      console.debug("signInWithPassword response:", res);
-
-      const authData = res.data;
-      const error = res.error;
+      console.debug("signInWithPassword response:", authData);
 
       if (error) {
         throw error;
@@ -85,15 +85,16 @@ const Login = () => {
         title: "Login realizado com sucesso!",
         description: "Bem-vindo de volta.",
       });
-    } catch (error: any) {
-      let errorMessage = error.message || JSON.stringify(error);
+    } catch (error: unknown) {
+      const rawMessage = getErrorMessage(error);
+      let errorMessage = rawMessage;
 
       // Traduzir mensagens de erro comuns
-      if (error.message?.includes("Invalid login credentials")) {
+      if (rawMessage.includes("Invalid login credentials")) {
         errorMessage = "Credenciais inválidas. Verifique seu e-mail e senha.";
-      } else if (error.message?.includes("Email not confirmed")) {
+      } else if (rawMessage.includes("Email not confirmed")) {
         errorMessage = "E-mail não confirmado. Verifique sua caixa de entrada e confirme seu e-mail.";
-      } else if (error.message?.includes("User not found")) {
+      } else if (rawMessage.includes("User not found")) {
         errorMessage = "Usuário não encontrado. Crie uma conta primeiro.";
       }
 
@@ -127,11 +128,11 @@ const Login = () => {
         description: "Verifique seu e-mail para confirmar sua conta.",
       });
       setMode("login");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Erro ao criar conta",
-        description: error.message,
+        description: getErrorMessage(error),
       });
     } finally {
       setLoading(false);
@@ -152,11 +153,11 @@ const Login = () => {
         description: "Verifique sua caixa de entrada para redefinir sua senha.",
       });
       setMode("login");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Erro ao enviar e-mail",
-        description: error.message,
+        description: getErrorMessage(error),
       });
     } finally {
       setLoading(false);

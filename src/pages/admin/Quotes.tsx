@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import React, { useState } from "react";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,36 +6,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronUp, Trash2, FileDown } from "lucide-react";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
-import { createRenewalReminder } from "@/lib/renewalReminders";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  useDeleteQuoteMutation,
+  useQuotesQuery,
+  useUpdateQuoteStatusMutation,
+  type QuoteStatus,
+} from "@/lib/admin";
 
-interface Quote {
-  id: string;
-  customer_name: string;
-  customer_email: string | null;
-  customer_phone: string;
-  items: any;
-  total_value: number;
-  status: string;
-  notes: string | null;
-  created_at: string;
-}
+type QuoteItem = {
+  product_name: string;
+  product_type: string;
+  quantity: number;
+};
 
 const Quotes = () => {
   const { toast } = useToast();
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const { data: quotes = [] } = useQuotesQuery();
+  const updateQuoteStatusMutation = useUpdateQuoteStatusMutation();
+  const deleteQuoteMutation = useDeleteQuoteMutation();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
-  useEffect(() => { fetchQuotes(); }, []);
-
-  const fetchQuotes = async () => {
-    const { data, error } = await supabase.from("quotes").select("*").order("created_at", { ascending: false });
-    if (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar os orçamentos." });
-    } else {
-      setQuotes(data || []);
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; className: string }> = {
@@ -57,20 +46,27 @@ const Quotes = () => {
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    const { data, error } = await supabase.from("quotes").update({ status: newStatus }).eq("id", id).select().single();
-    if (error) { toast({ variant: "destructive", title: "Erro ao atualizar status", description: `${error.message}` }); return; }
-    if (newStatus === "approved" && data) {
-      try { await createRenewalReminder(data.id, data.customer_name, data.customer_email, data.customer_phone); toast({ title: "Sucesso", description: "Status atualizado e lembrete criado." }); }
-      catch { toast({ title: "Status atualizado", description: "Erro ao criar lembrete." }); }
-    } else { toast({ title: "Sucesso", description: "Status atualizado." }); }
-    fetchQuotes();
+    try {
+      const result = await updateQuoteStatusMutation.mutateAsync({ id, status: newStatus as QuoteStatus });
+      toast({
+        title: "Sucesso",
+        description: result.reminderCreated ? "Status atualizado e lembrete criado." : "Status atualizado.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível atualizar o status.";
+      toast({ variant: "destructive", title: "Erro ao atualizar status", description: message });
+      return;
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Excluir este orçamento?")) return;
-    const { error } = await supabase.from("quotes").delete().eq("id", id);
-    if (error) { toast({ variant: "destructive", title: "Erro", description: "Não foi possível excluir." }); }
-    else { toast({ title: "Sucesso", description: "Orçamento excluído." }); fetchQuotes(); }
+    try {
+      await deleteQuoteMutation.mutateAsync(id);
+      toast({ title: "Sucesso", description: "Orçamento excluído." });
+    } catch {
+      toast({ variant: "destructive", title: "Erro", description: "Não foi possível excluir." });
+    }
   };
 
   return (
@@ -126,7 +122,7 @@ const Quotes = () => {
                             <h4 className="font-semibold mb-2">Produtos</h4>
                             {Array.isArray(quote.items) && quote.items.length > 0 ? (
                               <div className="space-y-2">
-                                {quote.items.map((item: any, idx: number) => (
+                                {(quote.items as QuoteItem[]).map((item, idx: number) => (
                                   <div key={idx} className="flex justify-between items-center p-2 bg-background rounded">
                                     <div><p className="font-medium">{item.product_name}</p><p className="text-xs text-muted-foreground">{item.product_type}</p></div>
                                     <div className="text-right text-xs"><p>Qtd: {item.quantity}</p></div>

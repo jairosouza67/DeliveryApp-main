@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { MobileNav } from "@/components/MobileNav";
-import { Flame, Gift, ArrowRight, Beer, Wine, Martini } from "lucide-react";
+import { Flame, Gift, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
@@ -24,17 +24,14 @@ interface Product {
 }
 
 const Index = () => {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>(() => {
+    return (getFeaturedProductsCached() as Product[] | null) ?? [];
+  });
   const { addItem } = useCart();
   const { toast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
-
-    const cached = getFeaturedProductsCached();
-    if (cached && cached.length > 0) {
-      setFeaturedProducts(cached as Product[]);
-    }
 
     refreshFeaturedProducts()
       .then((fresh) => {

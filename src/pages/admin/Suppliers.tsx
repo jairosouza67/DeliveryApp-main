@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,24 +9,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2 } from "lucide-react";
-
-interface Supplier {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  cnpj: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  notes: string | null;
-}
+import {
+  useCreateSupplierMutation,
+  useDeleteSupplierMutation,
+  useSuppliersQuery,
+  useUpdateSupplierMutation,
+  type SupplierRecord,
+} from "@/lib/admin";
 
 const Suppliers = () => {
   const { toast } = useToast();
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const { data: suppliers = [] } = useSuppliersQuery();
+  const createSupplierMutation = useCreateSupplierMutation();
+  const updateSupplierMutation = useUpdateSupplierMutation();
+  const deleteSupplierMutation = useDeleteSupplierMutation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<SupplierRecord | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -38,74 +35,45 @@ const Suppliers = () => {
     state: "",
     notes: "",
   });
-
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
-
-  const fetchSuppliers = async () => {
-    const { data, error } = await supabase
-      .from("suppliers")
-      .select("*")
-      .order("name");
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar os fornecedores.",
-      });
-    } else {
-      setSuppliers(data || []);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (editingSupplier) {
-      const { error } = await supabase
-        .from("suppliers")
-        .update(formData)
-        .eq("id", editingSupplier.id);
-
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível atualizar o fornecedor.",
-        });
-      } else {
+      try {
+        await updateSupplierMutation.mutateAsync({ id: editingSupplier.id, payload: formData });
         toast({
           title: "Sucesso",
           description: "Fornecedor atualizado com sucesso.",
         });
         setIsDialogOpen(false);
         resetForm();
-        fetchSuppliers();
-      }
-    } else {
-      const { error } = await supabase.from("suppliers").insert([formData]);
-
-      if (error) {
+      } catch {
         toast({
           variant: "destructive",
           title: "Erro",
-          description: "Não foi possível cadastrar o fornecedor.",
+          description: "Não foi possível atualizar o fornecedor.",
         });
-      } else {
+      }
+    } else {
+      try {
+        await createSupplierMutation.mutateAsync(formData);
         toast({
           title: "Sucesso",
           description: "Fornecedor cadastrado com sucesso.",
         });
         setIsDialogOpen(false);
         resetForm();
-        fetchSuppliers();
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível cadastrar o fornecedor.",
+        });
       }
     }
   };
 
-  const handleEdit = (supplier: Supplier) => {
+  const handleEdit = (supplier: SupplierRecord) => {
     setEditingSupplier(supplier);
     setFormData({
       name: supplier.name,
@@ -123,20 +91,18 @@ const Suppliers = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este fornecedor?")) return;
 
-    const { error } = await supabase.from("suppliers").delete().eq("id", id);
-
-    if (error) {
+    try {
+      await deleteSupplierMutation.mutateAsync(id);
+      toast({
+        title: "Sucesso",
+        description: "Fornecedor excluído com sucesso.",
+      });
+    } catch {
       toast({
         variant: "destructive",
         title: "Erro",
         description: "Não foi possível excluir o fornecedor.",
       });
-    } else {
-      toast({
-        title: "Sucesso",
-        description: "Fornecedor excluído com sucesso.",
-      });
-      fetchSuppliers();
     }
   };
 

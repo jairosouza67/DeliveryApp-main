@@ -9,7 +9,7 @@ const FEATURED_PRODUCTS_KEY = "products:featured";
 const ALL_PRODUCTS_TTL_MS = 10 * 60 * 1000; // 10 min
 const FEATURED_TTL_MS = 5 * 60 * 1000; // 5 min
 
-const inFlight = new Map<string, Promise<any>>();
+const inFlight = new Map<string, Promise<unknown>>();
 
 export type ProductRecord = {
   id: string;

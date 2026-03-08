@@ -1,10 +1,16 @@
-import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  useDashboardRealtime,
+  useDashboardStatsQuery,
+  useLowStockProductsQuery,
+  useOrdersByStatusQuery,
+  useRecentOrdersQuery,
+} from "@/lib/admin";
 import {
   ShoppingCart,
   Package,
@@ -28,127 +34,16 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    customers: 0,
-    products: 0,
-    orders: 0,
-    todaySales: 0,
-  });
-
-  const [ordersByStatus, setOrdersByStatus] = useState<{ status: string; count: number; percentage: number }[]>([]);
-  const [lowStockProducts, setLowStockProducts] = useState<{ name: string; in_stock: boolean }[]>([]);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetchStats();
-    fetchOrdersByStatus();
-    fetchLowStockProducts();
-    fetchRecentOrders();
-
-    // Setup realtime subscriptions
-    const ordersChannel = supabase
-      .channel('quotes-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
-        fetchStats();
-        fetchOrdersByStatus();
-        fetchRecentOrders();
-      })
-      .subscribe();
-
-    const productsChannel = supabase
-      .channel('products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchStats();
-        fetchLowStockProducts();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(ordersChannel);
-      supabase.removeChannel(productsChannel);
-    };
-  }, []);
-
-  const fetchStats = async () => {
-    const [customersCount, productsCount, ordersCount] = await Promise.all([
-      supabase.from("customers").select("*", { count: "exact", head: true }),
-      supabase.from("products").select("*", { count: "exact", head: true }),
-      supabase.from("quotes").select("*", { count: "exact", head: true }),
-    ]);
-
-    // Calculate today's sales (simplified - would need proper date filtering)
-    const { data: todayOrders } = await supabase
-      .from("quotes")
-      .select("total_value")
-      .eq("status", "approved");
-
-    const todaySales = todayOrders?.reduce((sum, order) => sum + (order.total_value || 0), 0) || 0;
-
-    setStats({
-      customers: customersCount.count || 0,
-      products: productsCount.count || 0,
-      orders: ordersCount.count || 0,
-      todaySales,
-    });
-  };
-
-  const fetchOrdersByStatus = async () => {
-    const { data: orders } = await supabase.from("quotes").select("status");
-
-    if (orders) {
-      const statusCounts = orders.reduce((acc: any, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1;
-        return acc;
-      }, {});
-
-      const statusLabels: Record<string, string> = {
-        'pending': 'Recebido',
-        'approved': 'Aprovado',
-        'cancelled': 'Cancelado',
-        'processing': 'Separando',
-        'delivered': 'Entregue',
-      };
-
-      const total = orders.length;
-      const statusData = Object.entries(statusCounts).map(([status, count]) => ({
-        status: statusLabels[status] || status,
-        count: count as number,
-        percentage: ((count as number) / total) * 100,
-      }));
-
-      setOrdersByStatus(statusData);
-    }
-  };
-
-  const fetchLowStockProducts = async () => {
-    const { data: products } = await supabase
-      .from("products")
-      .select("name, in_stock")
-      .eq("in_stock", false)
-      .order("name", { ascending: true })
-      .limit(10);
-
-    if (products) {
-      setLowStockProducts(products);
-    }
-  };
-
-  const fetchRecentOrders = async () => {
-    const { data: orders } = await supabase
-      .from("quotes")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (orders) {
-      setRecentOrders(orders);
-    }
-  };
+  useDashboardRealtime();
+  const { data: stats = { customers: 0, products: 0, orders: 0, todaySales: 0 } } = useDashboardStatsQuery();
+  const { data: ordersByStatus = [] } = useOrdersByStatusQuery();
+  const { data: lowStockProducts = [] } = useLowStockProductsQuery();
+  const { data: recentOrders = [] } = useRecentOrdersQuery();
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: ReactNode }> = {
       pending: { variant: "secondary", icon: <Clock className="w-3 h-3" /> },
       processing: { variant: "default", icon: <Package className="w-3 h-3" /> },
       approved: { variant: "default", icon: <Truck className="w-3 h-3" /> },
@@ -170,11 +65,6 @@ const Dashboard = () => {
 
   const formatCurrency = (value: number) => {
     return `R$ ${value.toFixed(2).replace('.', ',')}`;
-  };
-
-  const renderCustomLabel = (props: any) => {
-    const { status, percentage } = props;
-    return `${status}: ${percentage.toFixed(0)}%`;
   };
 
   return (

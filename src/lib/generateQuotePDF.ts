@@ -23,32 +23,25 @@ interface QuoteData {
 
 export const generateQuotePDF = async (quote: QuoteData) => {
   const doc = new jsPDF();
-  
-  // Load logo
-  const response = await fetch('/logo-arseg.jpg');
-  const blob = await response.blob();
-  const reader = new FileReader();
-  reader.readAsDataURL(blob);
-  await new Promise(resolve => reader.onload = resolve);
-  const imgData = reader.result as string;
-  
-  // Add logo centered at top
-  doc.addImage(imgData, 'JPEG', 75, 10, 60, 20); // Adjust position and size as needed
-  
-  // Company header
-  doc.setFontSize(16);
+
+  // Brand header
+  doc.setFillColor(190, 24, 93);
+  doc.rect(14, 12, 182, 18, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("ARSEG EXTINTORES", 105, 40, { align: "center" });
+  doc.text("BEBEMAIS", 105, 24, { align: "center" });
+  doc.setTextColor(0, 0, 0);
   
   // Quote title
   doc.setFontSize(14);
-  doc.text("ORÇAMENTO", 105, 50, { align: "center" });
+  doc.text("ORCAMENTO", 105, 42, { align: "center" });
   
   // Quote Info
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Número: ${quote.id.substring(0, 8).toUpperCase()}`, 14, 65);
-  doc.text(`Data: ${new Date(quote.created_at).toLocaleDateString("pt-BR")}`, 14, 71);
+  doc.text(`Numero: ${quote.id.substring(0, 8).toUpperCase()}`, 14, 57);
+  doc.text(`Data: ${new Date(quote.created_at).toLocaleDateString("pt-BR")}`, 14, 63);
   
   // Status
   const statusMap: Record<string, string> = {
@@ -56,20 +49,20 @@ export const generateQuotePDF = async (quote: QuoteData) => {
     approved: "Aprovado",
     rejected: "Rejeitado",
   };
-  doc.text(`Status: ${statusMap[quote.status] || quote.status}`, 14, 77);
+  doc.text(`Status: ${statusMap[quote.status] || quote.status}`, 14, 69);
   
   // Customer Info
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("DADOS DO CLIENTE", 14, 90);
+  doc.text("DADOS DO CLIENTE", 14, 82);
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Nome: ${quote.customer_name}`, 14, 98);
+  doc.text(`Nome: ${quote.customer_name}`, 14, 90);
   if (quote.customer_email) {
-    doc.text(`Email: ${quote.customer_email}`, 14, 104);
+    doc.text(`Email: ${quote.customer_email}`, 14, 96);
   }
-  doc.text(`Telefone: ${quote.customer_phone}`, 14, 110);
+  doc.text(`Telefone: ${quote.customer_phone}`, 14, 102);
   
   // Items Table
   const tableData = quote.items.map((item) => [
@@ -79,7 +72,7 @@ export const generateQuotePDF = async (quote: QuoteData) => {
   ]);
   
   autoTable(doc, {
-    startY: 120,
+    startY: 112,
     head: [["Produto", "Tipo", "Quantidade"]],
     body: tableData,
     theme: "grid",
@@ -97,14 +90,14 @@ export const generateQuotePDF = async (quote: QuoteData) => {
   });
   
   // Contact Info
-  const finalY = (doc as any).lastAutoTable.finalY || 120;
+  const finalY = ((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY) || 120;
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(220, 38, 38); // Red color for emphasis
-  doc.text("VALORES SOB CONSULTA", 105, finalY + 10, { align: "center" });
-  doc.setTextColor(0, 0, 0); // Reset to black
+  doc.setTextColor(190, 24, 93);
+  doc.text("PEDIDO RECEBIDO PELO TIME BEBEMAIS", 105, finalY + 10, { align: "center" });
+  doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "normal");
-  doc.text("Nosso vendedor entrará em contato para informar valores e condições de pagamento.", 105, finalY + 18, { align: "center" });
+  doc.text("Nossa equipe entrara em contato para confirmar itens, valores e entrega.", 105, finalY + 18, { align: "center" });
   
   // Notes
   if (quote.notes) {
@@ -121,7 +114,7 @@ export const generateQuotePDF = async (quote: QuoteData) => {
   const pageHeight = doc.internal.pageSize.height;
   doc.setFontSize(8);
   doc.setFont("helvetica", "italic");
-  doc.text("Este documento é apenas um orçamento e não representa uma nota fiscal.", 105, pageHeight - 15, { align: "center" });
+  doc.text("Este documento resume a solicitacao e nao substitui comprovantes fiscais.", 105, pageHeight - 15, { align: "center" });
   
   // Save
   const fileName = `orcamento_${quote.customer_name.replace(/\s+/g, "_")}_${quote.id.substring(0, 8)}.pdf`;

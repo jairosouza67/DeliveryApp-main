@@ -97,13 +97,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             );
 
             const inFlight = (async () => {
-                const raced = await Promise.race([queryPromise, timeoutPromise]);
+                const raced: Awaited<typeof queryPromise> | typeof timeoutSentinel = await Promise.race([
+                    queryPromise,
+                    timeoutPromise,
+                ]);
                 if (raced === timeoutSentinel) {
                     console.warn('AuthContext Debug: Role check timeout (usando cache/false)');
                     return cached?.isAdmin ?? false;
                 }
 
-                const { data, error } = raced as any;
+                const { data, error } = raced;
                 if (error) {
                     // Quando o usuário está sem internet, isso costuma virar ERR_INTERNET_DISCONNECTED.
                     console.warn('AuthContext Debug: Error checking role:', error);
