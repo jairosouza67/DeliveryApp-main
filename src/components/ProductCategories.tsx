@@ -55,43 +55,54 @@ const categories = [
 
 export const ProductCategories = () => {
   return (
-    <section className="py-20 bg-muted/30">
+    <section className="py-20">
       <div className="container">
-        <div className="text-center max-w-2xl mx-auto mb-12 space-y-4">
-          <h2 className="text-3xl md:text-4xl font-bold">
-            Explore nossas{" "}
-            <span className="bg-gradient-hero bg-clip-text text-transparent">
-              Categorias
-            </span>
-          </h2>
-          <p className="text-muted-foreground text-lg">
-            Das cervejas geladas aos destilados premium, temos a bebida perfeita para você
-          </p>
-        </div>
+        <div className="section-shell noise-surface px-6 py-8 md:px-10 md:py-10">
+          <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl space-y-4">
+              <div className="section-kicker">Categorias em destaque</div>
+              <h2 className="text-4xl text-foreground md:text-5xl">
+                A vitrine foi pensada por ocasião, não por bloco genérico.
+              </h2>
+            </div>
+            <p className="max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
+              Cada entrada aponta para um clima diferente: resenha, jantar, presente, pré-festa ou reposição rápida no meio da semana.
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
           {categories.map((category, index) => (
             <Link to={category.link} key={category.title}>
               <Card
-                className="group hover:shadow-elegant transition-all duration-300 cursor-pointer animate-fade-in h-full"
+                className={`ticket-card group h-full cursor-pointer animate-fade-in border-0 transition-all duration-300 hover:-translate-y-1 ${index === 0 || index === 5 ? "xl:col-span-2" : ""}`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <CardHeader>
-                  <div className={`w-14 h-14 rounded-xl ${category.bgColor} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                <CardHeader className="space-y-5 p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${category.bgColor} transition-transform group-hover:scale-110`}>
                     <category.icon className={`w-7 h-7 ${category.color}`} />
+                    </div>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
                   </div>
-                  <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                  <CardTitle className="text-2xl text-foreground transition-colors group-hover:text-primary">
                     {category.title}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base">
+                <CardContent className="p-6 pt-0">
+                  <CardDescription className="text-base leading-7 text-muted-foreground">
                     {category.description}
                   </CardDescription>
+                  <div className="mt-6 flex items-center justify-between border-t border-border/70 pt-4 text-sm font-semibold text-foreground">
+                    <span>Explorar seleção</span>
+                    <span className="text-primary transition-transform group-hover:translate-x-1">→</span>
+                  </div>
                 </CardContent>
               </Card>
             </Link>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>

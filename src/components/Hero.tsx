@@ -1,80 +1,142 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Truck, Clock, Percent, Star, Zap } from "lucide-react";
+import { ArrowRight, Clock3, MapPin, Percent, ShieldCheck, Sparkles, Truck, Zap } from "lucide-react";
 
 export const Hero = () => {
+  const metrics = [
+    { label: "Min médio", value: "35", note: "do clique até a entrega" },
+    { label: "Rótulos", value: "+120", note: "entre cervejas, vinhos e destilados" },
+    { label: "Cobertura", value: "3 zonas", note: "atendimento com rota própria" },
+  ];
+
   return (
-    <section className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-background">
-      {/* Background with Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-muted/30 to-background"></div>
+    <section className="relative overflow-hidden pb-12 pt-8 md:pb-20 md:pt-12">
+      <div className="absolute left-0 top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+      <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
 
-      {/* Elegant amber light elements */}
-      <div className="absolute top-20 right-20 w-96 h-96 bg-primary/15 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-10 left-10 w-80 h-80 bg-accent/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
-
-      <div className="container relative z-10 py-24">
-        <div className="max-w-4xl mx-auto space-y-12 animate-fade-in">
-          <div className="text-center space-y-6">
-            {/* Promo Badge */}
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent/15 border border-accent/30 shadow-glow promo-badge">
-              <Percent className="w-4 h-4 text-accent" />
-              <span className="text-sm font-semibold text-accent">Primeira compra com 10% OFF</span>
+      <div className="container relative z-10">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-8 animate-fade-in">
+            <div className="section-kicker">
+              <Percent className="h-3.5 w-3.5 text-primary" />
+              Primeira compra com 10% off
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-extrabold text-foreground leading-tight tracking-tight">
-              Bebida gelada
-              <span className="block mt-2 bg-gradient-hero bg-clip-text text-transparent leading-tight">
-                na sua porta
-              </span>
-            </h1>
+            <div className="space-y-5">
+              <h1 className="max-w-4xl text-5xl leading-[0.95] text-foreground md:text-7xl xl:text-[5.4rem]">
+                Delivery com cara de
+                <span className="block bg-gradient-hero bg-clip-text text-transparent">
+                  noite bem servida
+                </span>
+              </h1>
 
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Peça sua bebida favorita e receba em casa de forma rápida e prática.
-              Cervejas, vinhos, destilados e muito mais!
-            </p>
+              <p className="max-w-2xl text-lg leading-8 text-muted-foreground md:text-xl">
+                Cervejas geladas, vinhos com presença, destilados para ocasião e uma vitrine montada para parecer marca de verdade, não template reciclado.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <Button asChild size="lg" className="h-14 rounded-full px-8 text-base font-semibold">
+                <Link to="/catalogo">
+                  <Zap className="h-5 w-5" />
+                  Abrir catálogo
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="h-14 rounded-full border-border/80 bg-card/80 px-8 text-base">
+                <Link to="/contato">
+                  Falar com a equipe
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {metrics.map((metric) => (
+                <div key={metric.label} className="metric-tile">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    {metric.label}
+                  </p>
+                  <p className="mt-3 text-4xl font-semibold leading-none text-foreground">{metric.value}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{metric.note}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-5 text-sm font-medium text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-primary" />
+                Rota própria para pedidos rápidos
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                Curadoria e estoque com reposição diária
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
-            <Button asChild size="lg" className="w-full sm:w-auto shadow-elegant shadow-primary/30 text-lg px-8 py-6">
-              <Link to="/catalogo">
-                <Zap className="mr-2 h-5 w-5" />
-                Ver Catálogo
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto border-primary/30 hover:bg-primary/5 text-lg px-8 py-6">
-              <Link to="/contato">Fale Conosco</Link>
-            </Button>
-          </div>
+          <div className="hero-panel noise-surface p-5 md:p-7">
+            <div className="relative z-10 space-y-5">
+              <div className="flex items-center justify-between rounded-[1.5rem] border border-border/60 bg-card/80 px-5 py-4 backdrop-blur">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Operação ao vivo</p>
+                  <p className="mt-2 font-display text-3xl text-foreground">Gelada, rápida, sem improviso</p>
+                </div>
+                <Sparkles className="h-8 w-8 text-primary float-slow" />
+              </div>
 
-          {/* Features */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8">
-            <div className="flex flex-col items-center gap-4 p-8 rounded-xl bg-card border border-primary/10 hover:border-primary/30 hover:shadow-elegant transition-all animate-scale-in group">
-              <div className="p-4 rounded-full bg-primary/15 group-hover:bg-primary/25 transition-colors shadow-sm">
-                <Truck className="w-7 h-7 text-primary" />
+              <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
+                <div className="rounded-[1.75rem] bg-secondary p-6 text-secondary-foreground shadow-elegant">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-secondary-foreground/60">Seleção da casa</p>
+                  <p className="mt-3 font-display text-4xl leading-none">Combo de sexta</p>
+                  <p className="mt-4 max-w-sm text-sm leading-7 text-secondary-foreground/78">
+                    Packs frios, energético para mix e um vinho de entrada que não parece escolha automática.
+                  </p>
+                  <div className="editorial-divider my-6 bg-white/15" />
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-2xl bg-white/8 p-4">
+                      <p className="text-secondary-foreground/58">Tempo estimado</p>
+                      <p className="mt-2 text-xl font-semibold">25-40 min</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/8 p-4">
+                      <p className="text-secondary-foreground/58">Pedido mínimo</p>
+                      <p className="mt-2 text-xl font-semibold">R$ 20</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  <div className="rounded-[1.5rem] border border-border/60 bg-card/75 p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-primary/12 p-3">
+                        <Clock3 className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Janela ideal</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">Pico entre 18h e 21h</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-border/60 bg-card/75 p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-accent/12 p-3">
+                        <MapPin className="h-5 w-5 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Cobertura atual</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">Centro, Sul e Oeste</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-dashed border-primary/40 bg-primary/8 p-5">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-primary">Atenção ao detalhe</p>
+                    <p className="mt-3 text-sm leading-7 text-foreground/78">
+                      Visual pensado para parecer operação premium de bairro, com energia de bar e não de landing page genérica.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-bold text-foreground text-lg">Entrega Rápida</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                Receba em até 40 minutos na sua região
-              </p>
-            </div>
-            <div className="flex flex-col items-center gap-4 p-8 rounded-xl bg-card border border-primary/10 hover:border-primary/30 hover:shadow-elegant transition-all animate-scale-in delay-100 group">
-              <div className="p-4 rounded-full bg-primary/15 group-hover:bg-primary/25 transition-colors shadow-sm">
-                <Clock className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="font-bold text-foreground text-lg">Pedido Fácil</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                Monte seu carrinho em poucos cliques
-              </p>
-            </div>
-            <div className="flex flex-col items-center gap-4 p-8 rounded-xl bg-card border border-primary/10 hover:border-primary/30 hover:shadow-elegant transition-all animate-scale-in delay-200 group">
-              <div className="p-4 rounded-full bg-primary/15 group-hover:bg-primary/25 transition-colors shadow-sm">
-                <Star className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="font-bold text-foreground text-lg">Qualidade Garantida</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                Bebidas sempre geladas e de marcas premium
-              </p>
             </div>
           </div>
         </div>

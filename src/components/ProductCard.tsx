@@ -48,59 +48,63 @@ export const ProductCard = ({
 
   return (
     <Link to={`/produto/${id}`} className="block h-full">
-      <Card className="group overflow-hidden hover:shadow-elegant transition-all duration-300 flex flex-col h-full cursor-pointer">
-        {/* Product Image */}
-        <div className="relative aspect-square bg-muted/50 overflow-hidden">
+      <Card className="ticket-card group flex h-full cursor-pointer flex-col overflow-hidden border-0 transition-all duration-300 hover:-translate-y-1">
+        <div className="relative aspect-[4/4.2] overflow-hidden bg-muted/50">
           {imageUrl ? (
             <img
               src={imageUrl}
               alt={name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-card">
               <Package className="w-16 h-16 text-muted-foreground/30" />
             </div>
           )}
 
-          {/* Stock Badge */}
           <Badge
             variant={stockStatus.variant}
-            className="absolute top-3 right-3"
+            className="absolute right-4 top-4 rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]"
           >
             {stockStatus.label}
           </Badge>
+
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
         </div>
 
-        <CardContent className="flex-1 p-4 space-y-2">
-          {/* Category */}
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <CardContent className="flex-1 space-y-3 p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             {type}
           </p>
 
-          {/* Name */}
-          <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="line-clamp-2 text-2xl leading-tight text-foreground transition-colors group-hover:text-primary">
             {name}
           </h3>
 
-          {/* Volume if available */}
           {volume && (
             <p className="text-sm text-muted-foreground">{volume}</p>
           )}
 
-          {/* Price - Always visible */}
-          <div className="pt-2">
-            <span className="text-2xl font-bold text-primary">
+          <div className="editorial-divider" />
+
+          <div className="flex items-end justify-between gap-4 pt-1">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
+              <span className="mt-2 block text-3xl font-semibold leading-none text-primary">
               R$ {price.toFixed(2).replace('.', ',')}
+            </span>
+            </div>
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              Pronta entrega
             </span>
           </div>
         </CardContent>
 
-        <CardFooter className="p-4 pt-0">
+        <CardFooter className="p-5 pt-0">
           <Button
             onClick={handleAddToCart}
             disabled={!stockStatus.canBuy}
-            className="w-full gap-2"
+            className="h-12 w-full gap-2 rounded-full"
             variant={stockStatus.canBuy ? "default" : "secondary"}
           >
             {stockStatus.canBuy ? (
