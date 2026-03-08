@@ -7,6 +7,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string;
+  currencyCode?: string;
 }
 
 interface CartContextType {

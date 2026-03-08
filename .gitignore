@@ -18,6 +18,7 @@ build/
 
 # IDE and Editor
 .vscode/mcp.json
+.agent/
 .idea/
 *.swp
 *.swo

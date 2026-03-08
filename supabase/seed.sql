@@ -1,0 +1,2 @@
+-- Seed file intentionally kept minimal.
+-- Use `npx tsx scripts/seed-products.ts` for curated catalog seeding.

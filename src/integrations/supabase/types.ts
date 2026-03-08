@@ -58,37 +58,91 @@ export type Database = {
       }
       products: {
         Row: {
+          abv: string | null
+          alcoholic: boolean | null
+          brand: string | null
+          category_slug: string | null
           created_at: string
+          currency_code: string | null
           description: string | null
           id: string
           image_url: string | null
           in_stock: boolean
           name: string
           price: number
+          price_reference_label: string | null
+          price_source: string | null
+          source_city_code: string | null
+          source_country_code: string | null
+          source_dataset: string | null
+          source_description: string | null
+          source_image_path: string | null
+          source_product_name: string | null
+          source_section: string | null
+          source_store_name: string | null
+          status: string | null
           type: string
           updated_at: string
+          volume_label: string | null
+          package_type: string | null
         }
         Insert: {
+          abv?: string | null
+          alcoholic?: boolean | null
+          brand?: string | null
+          category_slug?: string | null
           created_at?: string
+          currency_code?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
           in_stock?: boolean
           name: string
           price?: number
+          price_reference_label?: string | null
+          price_source?: string | null
+          source_city_code?: string | null
+          source_country_code?: string | null
+          source_dataset?: string | null
+          source_description?: string | null
+          source_image_path?: string | null
+          source_product_name?: string | null
+          source_section?: string | null
+          source_store_name?: string | null
+          status?: string | null
           type: string
           updated_at?: string
+          volume_label?: string | null
+          package_type?: string | null
         }
         Update: {
+          abv?: string | null
+          alcoholic?: boolean | null
+          brand?: string | null
+          category_slug?: string | null
           created_at?: string
+          currency_code?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
           in_stock?: boolean
           name?: string
           price?: number
+          price_reference_label?: string | null
+          price_source?: string | null
+          source_city_code?: string | null
+          source_country_code?: string | null
+          source_dataset?: string | null
+          source_description?: string | null
+          source_image_path?: string | null
+          source_product_name?: string | null
+          source_section?: string | null
+          source_store_name?: string | null
+          status?: string | null
           type?: string
           updated_at?: string
+          volume_label?: string | null
+          package_type?: string | null
         }
         Relationships: []
       }

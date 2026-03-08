@@ -31,6 +31,7 @@ import {
   Legend,
   Tooltip
 } from "recharts";
+import { formatCurrency } from "@/lib/currency";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -63,10 +64,6 @@ const Dashboard = () => {
     );
   };
 
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toFixed(2).replace('.', ',')}`;
-  };
-
   return (
     <AdminLayout title="Resumo Geral" subtitle="Bem-vindo de volta! Aqui está uma visão rápida do seu negócio hoje.">
       {/* Stats Cards */}
@@ -82,7 +79,7 @@ const Dashboard = () => {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-4xl font-black text-primary tracking-tight mb-1">{formatCurrency(stats.todaySales)}</div>
+            <div className="text-4xl font-black text-primary tracking-tight mb-1">{formatCurrency(stats.todaySales, "EUR")}</div>
             <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-tighter">
               <TrendingUp className="h-3 w-3" />
               +12% desde ontem

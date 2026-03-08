@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, Clock3, MapPin, Percent, ShieldCheck, Sparkles, Truck, Zap } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
 export const Hero = () => {
   const metrics = [
@@ -99,7 +100,7 @@ export const Hero = () => {
                     </div>
                     <div className="rounded-2xl bg-white/8 p-4">
                       <p className="text-secondary-foreground/58">Pedido mínimo</p>
-                      <p className="mt-2 text-xl font-semibold">R$ 20</p>
+                      <p className="mt-2 text-xl font-semibold">{formatCurrency(20, "EUR")}</p>
                     </div>
                   </div>
                 </div>

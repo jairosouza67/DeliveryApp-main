@@ -14,6 +14,8 @@ import {
     selectRelatedFromAll,
     type ProductRecord,
 } from "@/lib/productsApi";
+import { formatCurrency, formatInstallment } from "@/lib/currency";
+import { getPriceReference, getProductMetaLines, getProductOrigin, getSourceSectionLabel } from "@/lib/productMetadata";
 import {
     ArrowLeft,
     Plus,
@@ -26,24 +28,17 @@ import {
     AlertTriangle,
     Star,
     Zap,
+    Globe,
+    Wine,
+    BadgeInfo,
 } from "lucide-react";
-
-interface Product {
-    id: string;
-    name: string;
-    type: string;
-    price: number;
-    description: string | null;
-    image_url: string | null;
-    in_stock: boolean;
-}
 
 const ProductDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { addItem } = useCart();
-    const [product, setProduct] = useState<Product | null>(null);
-    const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+    const [product, setProduct] = useState<ProductRecord | null>(null);
+    const [relatedProducts, setRelatedProducts] = useState<ProductRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
 
@@ -58,13 +53,14 @@ const ProductDetails = () => {
         const cachedAll = getAllProductsCached();
         const cachedProduct = cachedAll?.find((p) => p.id === id);
         if (cachedProduct) {
-            setProduct(cachedProduct as unknown as Product);
+            setProduct(cachedProduct);
             setRelatedProducts(
                 selectRelatedFromAll(cachedAll as ProductRecord[], {
                     type: cachedProduct.type,
                     excludeId: cachedProduct.id,
                     limit: 4,
-                }) as unknown as Product[],
+                    categorySlug: cachedProduct.category_slug,
+                }),
             );
             setLoading(false);
         }
@@ -72,7 +68,7 @@ const ProductDetails = () => {
         try {
             // Atualiza (ou busca pela 1ª vez) via lista completa (c/ cache)
             const all = await refreshAllProducts();
-            const fresh = all.find((p) => p.id === id) as unknown as Product | undefined;
+            const fresh = all.find((p) => p.id === id);
             setProduct(fresh ?? null);
 
             if (fresh) {
@@ -81,7 +77,8 @@ const ProductDetails = () => {
                         type: fresh.type,
                         excludeId: fresh.id,
                         limit: 4,
-                    }) as unknown as Product[],
+                        categorySlug: fresh.category_slug,
+                    }),
                 );
             } else {
                 setRelatedProducts([]);
@@ -104,6 +101,7 @@ const ProductDetails = () => {
                     type: product.type,
                     price: product.price,
                     imageUrl: product.image_url || undefined,
+                    currencyCode: product.currency_code || "EUR",
                 });
             }
             toast.success(`${quantity}x ${product.name} adicionado ao carrinho!`);
@@ -119,6 +117,7 @@ const ProductDetails = () => {
                     type: product.type,
                     price: product.price,
                     imageUrl: product.image_url || undefined,
+                    currencyCode: product.currency_code || "EUR",
                 });
             }
             navigate("/checkout");
@@ -165,6 +164,12 @@ const ProductDetails = () => {
             </div>
         );
     }
+
+    const currencyCode = product.currency_code || "EUR";
+    const metaLines = getProductMetaLines(product);
+    const priceReference = getPriceReference(product);
+    const originLabel = getProductOrigin(product);
+    const sourceSection = getSourceSectionLabel(product);
 
     return (
         <div className="min-h-screen flex flex-col bg-background">
@@ -267,12 +272,26 @@ const ProductDetails = () => {
                             {/* Price */}
                             <div className="space-y-1">
                                 <span className="text-4xl lg:text-5xl font-bold text-primary">
-                                    R$ {product.price.toFixed(2).replace(".", ",")}
+                                    {formatCurrency(product.price, currencyCode)}
                                 </span>
-                                <p className="text-sm text-muted-foreground">
-                                    ou 3x de R$ {(product.price / 3).toFixed(2).replace(".", ",")} sem juros
-                                </p>
+                                {currencyCode === "BRL" ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        ou 3x de {formatInstallment(product.price, currencyCode)} sem juros
+                                    </p>
+                                ) : priceReference ? (
+                                    <p className="text-sm text-muted-foreground">Preço de referência: {priceReference}</p>
+                                ) : null}
                             </div>
+
+                            {metaLines.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {metaLines.map((metaLine) => (
+                                        <Badge key={metaLine} variant="outline" className="rounded-full px-3 py-1">
+                                            {metaLine}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
 
                             {/* Description */}
                             {product.description && (
@@ -281,6 +300,55 @@ const ProductDetails = () => {
                                     <p className="text-muted-foreground leading-relaxed">
                                         {product.description}
                                     </p>
+                                </div>
+                            )}
+
+                            {(sourceSection || originLabel || product.source_dataset || product.price_source) && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {sourceSection && (
+                                        <Card className="border-dashed">
+                                            <CardContent className="flex items-start gap-3 p-4">
+                                                <Wine className="w-5 h-5 text-primary mt-0.5" />
+                                                <div>
+                                                    <p className="font-medium text-sm">Seção original</p>
+                                                    <p className="text-xs text-muted-foreground">{sourceSection}</p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                    {originLabel && (
+                                        <Card className="border-dashed">
+                                            <CardContent className="flex items-start gap-3 p-4">
+                                                <Globe className="w-5 h-5 text-primary mt-0.5" />
+                                                <div>
+                                                    <p className="font-medium text-sm">Origem do dado</p>
+                                                    <p className="text-xs text-muted-foreground">{originLabel}</p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                    {product.source_dataset && (
+                                        <Card className="border-dashed">
+                                            <CardContent className="flex items-start gap-3 p-4">
+                                                <BadgeInfo className="w-5 h-5 text-primary mt-0.5" />
+                                                <div>
+                                                    <p className="font-medium text-sm">Dataset</p>
+                                                    <p className="text-xs text-muted-foreground">{product.source_dataset}</p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                    {product.price_source && (
+                                        <Card className="border-dashed">
+                                            <CardContent className="flex items-start gap-3 p-4">
+                                                <Package className="w-5 h-5 text-primary mt-0.5" />
+                                                <div>
+                                                    <p className="font-medium text-sm">Fonte do preço</p>
+                                                    <p className="text-xs text-muted-foreground">{product.price_source}</p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
                                 </div>
                             )}
 
@@ -398,6 +466,14 @@ const ProductDetails = () => {
                                     price={relatedProduct.price}
                                     imageUrl={relatedProduct.image_url || undefined}
                                     inStock={relatedProduct.in_stock}
+                                    currencyCode={relatedProduct.currency_code}
+                                    brand={relatedProduct.brand}
+                                    volumeLabel={relatedProduct.volume_label}
+                                    packageType={relatedProduct.package_type}
+                                    alcoholic={relatedProduct.alcoholic}
+                                    sourceSection={relatedProduct.source_section}
+                                    priceReferenceLabel={relatedProduct.price_reference_label}
+                                    priceSource={relatedProduct.price_source}
                                     onAddToCart={() => {
                                         addItem({
                                             id: relatedProduct.id,
@@ -405,6 +481,7 @@ const ProductDetails = () => {
                                             type: relatedProduct.type,
                                             price: relatedProduct.price,
                                             imageUrl: relatedProduct.image_url || undefined,
+                                            currencyCode: relatedProduct.currency_code || "EUR",
                                         });
                                         toast.success(`${relatedProduct.name} adicionado ao carrinho!`);
                                     }}

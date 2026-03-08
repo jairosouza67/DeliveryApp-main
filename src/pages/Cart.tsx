@@ -21,20 +21,20 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency } from "@/lib/currency";
 
 const Cart = () => {
     const { items, removeItem, updateQuantity, total, itemCount, clearCart } = useCart();
     const navigate = useNavigate();
     const [cupom, setCupom] = useState("");
     const [observacoes, setObservacoes] = useState("");
+    const currencyCode = items[0]?.currencyCode ?? "EUR";
 
     const deliveryFee = 5.00;
     const minOrderValue = 30.00;
     const isMinOrderMet = total >= minOrderValue;
 
-    const formatPrice = (value: number) => {
-        return `R$ ${value.toFixed(2).replace('.', ',')}`;
-    };
+    const formatPrice = (value: number) => formatCurrency(value, currencyCode);
 
     const handleCheckout = () => {
         // Could store observacoes in cart context or localStorage
@@ -101,8 +101,12 @@ const Cart = () => {
                                         <CardContent className="p-4">
                                             <div className="flex items-center gap-4">
                                                 {/* Product Image Placeholder */}
-                                                <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                                                    <Package className="w-8 h-8 text-muted-foreground/30" />
+                                                <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                    {item.imageUrl ? (
+                                                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Package className="w-8 h-8 text-muted-foreground/30" />
+                                                    )}
                                                 </div>
 
                                                 {/* Product Info */}
@@ -112,7 +116,7 @@ const Cart = () => {
                                                     </p>
                                                     <h3 className="font-semibold truncate">{item.name}</h3>
                                                     <p className="text-lg font-bold text-primary mt-1">
-                                                        {formatPrice(item.price)}
+                                                        {formatCurrency(item.price, item.currencyCode ?? currencyCode)}
                                                     </p>
                                                 </div>
 

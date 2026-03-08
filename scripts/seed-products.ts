@@ -2,12 +2,16 @@
 // Execute com: npx tsx scripts/seed-products.ts
 
 import { createClient } from '@supabase/supabase-js';
+import { loadSupabaseEnv } from './loadSupabaseEnv';
 
-// Using user's actual Supabase credentials from .env
-const SUPABASE_URL = 'https://hcgntbskqevibpehyvrr.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZ250YnNrcWV2aWJwZWh5dnJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2Nzg2ODUsImV4cCI6MjA4MjI1NDY4NX0.fw3Ko-4YHG9NqK25tUPrrLvPeLCVbJW5H6pe3G7cwGo';
+const supabaseConfig = loadSupabaseEnv();
+const supabaseKey = supabaseConfig.serviceRoleKey ?? supabaseConfig.publishableKey;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!supabaseKey) {
+    throw new Error('Chave do Supabase não encontrada. Configure SUPABASE_SERVICE_ROLE_KEY ou VITE_SUPABASE_PUBLISHABLE_KEY no ambiente/.env.');
+}
+
+const supabase = createClient(supabaseConfig.url, supabaseKey);
 
 const beverages = [
     // CERVEJAS

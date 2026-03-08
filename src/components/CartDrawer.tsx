@@ -12,6 +12,7 @@ import { ShoppingCart, Trash2, Plus, Minus, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency } from "@/lib/currency";
 
 export const CartDrawer = () => {
   const { items, removeItem, updateQuantity, total, itemCount, clearCart } = useCart();
@@ -29,9 +30,8 @@ export const CartDrawer = () => {
     navigate("/carrinho");
   };
 
-  const formatPrice = (value: number) => {
-    return `R$ ${value.toFixed(2).replace('.', ',')}`;
-  };
+  const currencyCode = items[0]?.currencyCode ?? "EUR";
+  const formatPrice = (value: number) => formatCurrency(value, currencyCode);
 
   return (
     <Sheet>
@@ -82,7 +82,7 @@ export const CartDrawer = () => {
                     <h4 className="font-medium text-sm truncate">{item.name}</h4>
                     <p className="text-xs text-muted-foreground">{item.type}</p>
                     <p className="text-sm font-semibold text-primary mt-1">
-                      {formatPrice(item.price)}
+                      {formatCurrency(item.price, item.currencyCode ?? currencyCode)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">

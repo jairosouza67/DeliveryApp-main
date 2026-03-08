@@ -1,7 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { readCache, removeCache, writeCache } from "@/lib/cache";
 
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 
 const ALL_PRODUCTS_KEY = "products:all";
 const FEATURED_PRODUCTS_KEY = "products:featured";
@@ -11,16 +12,7 @@ const FEATURED_TTL_MS = 5 * 60 * 1000; // 5 min
 
 const inFlight = new Map<string, Promise<unknown>>();
 
-export type ProductRecord = {
-  id: string;
-  name: string;
-  type: string;
-  price: number;
-  in_stock: boolean;
-  image_url?: string | null;
-  description?: string | null;
-  created_at?: string;
-};
+export type ProductRecord = Database["public"]["Tables"]["products"]["Row"];
 
 function dedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const existing = inFlight.get(key) as Promise<T> | undefined;
@@ -89,13 +81,15 @@ export function invalidateProductsCache(): void {
 
 export function selectRelatedFromAll(
   all: ProductRecord[],
-  options: { type: string; excludeId: string; limit?: number },
+  options: { type: string; excludeId: string; limit?: number; categorySlug?: string | null },
 ): ProductRecord[] {
   const limit = options.limit ?? 4;
   return all
     .filter(
       (p) =>
-        p.type === options.type &&
+        (options.categorySlug
+          ? p.category_slug === options.categorySlug
+          : p.type === options.type) &&
         p.id !== options.excludeId &&
         p.in_stock === true,
     )

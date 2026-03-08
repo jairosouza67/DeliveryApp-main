@@ -12,16 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { MobileNav } from "@/components/MobileNav";
 import { useSearchParams } from "react-router-dom";
 import { getAllProductsCached, refreshAllProducts, type ProductRecord } from "@/lib/productsApi";
-
-interface Product {
-    id: string;
-    name: string;
-    type: string;
-    price: number;
-    in_stock: boolean;
-    image_url?: string;
-    description?: string;
-}
+import { formatCurrency } from "@/lib/currency";
+import { resolveCategorySlug } from "@/lib/productMetadata";
 
 const categories = [
     { id: "todos", label: "Todos" },
@@ -36,8 +28,8 @@ const categories = [
 const Catalogo = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState("");
-    const [products, setProducts] = useState<Product[]>(() => {
-        return (getAllProductsCached() as Product[] | null) ?? [];
+    const [products, setProducts] = useState<ProductRecord[]>(() => {
+        return getAllProductsCached() ?? [];
     });
     const [loading, setLoading] = useState(products.length === 0);
     const { addItem } = useCart();
@@ -51,7 +43,7 @@ const Catalogo = () => {
         refreshAllProducts()
             .then((fresh) => {
                 if (cancelled) return;
-                setProducts(fresh as Product[]);
+                setProducts(fresh);
                 setLoading(false);
             })
             .catch(() => {
@@ -84,20 +76,22 @@ const Catalogo = () => {
     const filteredProducts = products.filter((product) => {
         const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = selectedCategory === "todos" ||
-            product.type.toLowerCase().includes(selectedCategory.toLowerCase());
+            resolveCategorySlug(product) === selectedCategory;
         return matchesSearch && matchesCategory;
     });
 
-    const handleAddToCart = (product: Product) => {
+    const handleAddToCart = (product: ProductRecord) => {
         addItem({
             id: product.id,
             name: product.name,
             type: product.type,
             price: product.price,
+            imageUrl: product.image_url || undefined,
+            currencyCode: product.currency_code || "EUR",
         });
         toast({
             title: "Adicionado ao carrinho! 🛒",
-            description: `${product.name} - R$ ${product.price.toFixed(2).replace('.', ',')}`,
+            description: `${product.name} - ${formatCurrency(product.price, product.currency_code || "EUR")}`,
         });
     };
 
@@ -186,6 +180,14 @@ const Catalogo = () => {
                                             price={product.price}
                                             imageUrl={product.image_url}
                                             inStock={product.in_stock}
+                                            currencyCode={product.currency_code}
+                                            brand={product.brand}
+                                            volumeLabel={product.volume_label}
+                                            packageType={product.package_type}
+                                            alcoholic={product.alcoholic}
+                                            sourceSection={product.source_section}
+                                            priceReferenceLabel={product.price_reference_label}
+                                            priceSource={product.price_source}
                                             onAddToCart={() => handleAddToCart(product)}
                                         />
                                     ))}

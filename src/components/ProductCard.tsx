@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/currency";
+import { getPriceReference, getProductMetaLines, getSourceSectionLabel } from "@/lib/productMetadata";
 import { Plus, Package, AlertTriangle } from "lucide-react";
 
 interface ProductCardProps {
@@ -13,6 +15,14 @@ interface ProductCardProps {
   imageUrl?: string;
   inStock: boolean;
   stockQuantity?: number;
+  currencyCode?: string | null;
+  brand?: string | null;
+  volumeLabel?: string | null;
+  packageType?: string | null;
+  alcoholic?: boolean | null;
+  sourceSection?: string | null;
+  priceReferenceLabel?: string | null;
+  priceSource?: string | null;
   onAddToCart: () => void;
 }
 
@@ -25,6 +35,14 @@ export const ProductCard = ({
   imageUrl,
   inStock,
   stockQuantity,
+  currencyCode,
+  brand,
+  volumeLabel,
+  packageType,
+  alcoholic,
+  sourceSection,
+  priceReferenceLabel,
+  priceSource,
   onAddToCart,
 }: ProductCardProps) => {
   // Determine stock status
@@ -39,6 +57,15 @@ export const ProductCard = ({
   };
 
   const stockStatus = getStockStatus();
+  const metaLines = getProductMetaLines({
+    type,
+    brand,
+    volume_label: volumeLabel ?? volume,
+    package_type: packageType,
+    alcoholic,
+  }).slice(0, 3);
+  const sourceLabel = getSourceSectionLabel({ type, source_section: sourceSection });
+  const referenceLabel = getPriceReference({ type, price_reference_label: priceReferenceLabel, price_source: priceSource });
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -85,14 +112,36 @@ export const ProductCard = ({
             <p className="text-sm text-muted-foreground">{volume}</p>
           )}
 
+          {metaLines.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {metaLines.map((metaLine) => (
+                <span
+                  key={metaLine}
+                  className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                >
+                  {metaLine}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {sourceLabel && (
+            <p className="text-xs leading-5 text-muted-foreground">Seção original: {sourceLabel}</p>
+          )}
+
           <div className="editorial-divider" />
 
           <div className="flex items-end justify-between gap-4 pt-1">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
               <span className="mt-2 block text-3xl font-semibold leading-none text-primary">
-              R$ {price.toFixed(2).replace('.', ',')}
-            </span>
+                {formatCurrency(price, currencyCode ?? "EUR")}
+              </span>
+              {referenceLabel && (
+                <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {referenceLabel}
+                </p>
+              )}
             </div>
             <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               Pronta entrega

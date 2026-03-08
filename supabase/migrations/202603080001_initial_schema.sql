@@ -1,10 +1,5 @@
--- BebeMais - Schema do Banco de Dados
--- Execute este SQL no Supabase SQL Editor
--- https://supabase.com/dashboard/project/hcgntbskqevibpehyvrr/sql/new
+-- BebeMais - Initial schema managed by Supabase CLI
 
--- ======================
--- TABELA DE PRODUTOS
--- ======================
 CREATE TABLE IF NOT EXISTS public.products (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -35,41 +30,30 @@ CREATE TABLE IF NOT EXISTS public.products (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS category_slug TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS currency_code TEXT DEFAULT 'EUR';
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_source TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_reference_label TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS brand TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS volume_label TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS package_type TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS alcoholic BOOLEAN;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS abv TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_dataset TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_product_name TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_section TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_description TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_country_code TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_city_code TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_store_name TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS source_image_path TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
-ALTER TABLE public.products ALTER COLUMN currency_code SET DEFAULT 'EUR';
-ALTER TABLE public.products ALTER COLUMN status SET DEFAULT 'draft';
-
--- Habilitar RLS
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
--- Política: Produtos são públicos para leitura
-CREATE POLICY "Produtos são públicos para leitura" ON public.products
-  FOR SELECT USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'products' AND policyname = 'Produtos são públicos para leitura'
+  ) THEN
+    CREATE POLICY "Produtos são públicos para leitura" ON public.products
+      FOR SELECT USING (true);
+  END IF;
+END $$;
 
--- Política: Qualquer um pode inserir/atualizar (para testes)
-CREATE POLICY "Permitir todas operações" ON public.products
-  FOR ALL USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'products' AND policyname = 'Permitir todas operações'
+  ) THEN
+    CREATE POLICY "Permitir todas operações" ON public.products
+      FOR ALL USING (true);
+  END IF;
+END $$;
 
--- ======================
--- TABELA DE CLIENTES
--- ======================
 CREATE TABLE IF NOT EXISTS public.customers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -85,11 +69,17 @@ CREATE TABLE IF NOT EXISTS public.customers (
 );
 
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Clientes públicos" ON public.customers FOR ALL USING (true);
 
--- ======================
--- TABELA DE PEDIDOS (quotes)
--- ======================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Clientes públicos'
+  ) THEN
+    CREATE POLICY "Clientes públicos" ON public.customers FOR ALL USING (true);
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.quotes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   customer_name TEXT NOT NULL,
@@ -105,11 +95,17 @@ CREATE TABLE IF NOT EXISTS public.quotes (
 );
 
 ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Pedidos públicos" ON public.quotes FOR ALL USING (true);
 
--- ======================
--- TABELA DE FORNECEDORES
--- ======================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'quotes' AND policyname = 'Pedidos públicos'
+  ) THEN
+    CREATE POLICY "Pedidos públicos" ON public.quotes FOR ALL USING (true);
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.suppliers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -125,12 +121,23 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
 );
 
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Fornecedores públicos" ON public.suppliers FOR ALL USING (true);
 
--- ======================
--- TABELA DE ROLES
--- ======================
-CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'suppliers' AND policyname = 'Fornecedores públicos'
+  ) THEN
+    CREATE POLICY "Fornecedores públicos" ON public.suppliers FOR ALL USING (true);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+    CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -140,11 +147,17 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
 );
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Roles públicos" ON public.user_roles FOR ALL USING (true);
 
--- ======================
--- TABELA DE LEMBRETES
--- ======================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user_roles' AND policyname = 'Roles públicos'
+  ) THEN
+    CREATE POLICY "Roles públicos" ON public.user_roles FOR ALL USING (true);
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.renewal_reminders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   quote_id UUID REFERENCES public.quotes(id) NOT NULL,
@@ -160,11 +173,17 @@ CREATE TABLE IF NOT EXISTS public.renewal_reminders (
 );
 
 ALTER TABLE public.renewal_reminders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Lembretes públicos" ON public.renewal_reminders FOR ALL USING (true);
 
--- ======================
--- FUNÇÃO has_role
--- ======================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'renewal_reminders' AND policyname = 'Lembretes públicos'
+  ) THEN
+    CREATE POLICY "Lembretes públicos" ON public.renewal_reminders FOR ALL USING (true);
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.has_role(_role public.app_role, _user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN

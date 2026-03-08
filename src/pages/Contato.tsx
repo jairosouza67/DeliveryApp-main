@@ -4,6 +4,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/currency";
 import {
   MessageCircle,
   Phone,
@@ -142,11 +143,11 @@ const Contato = () => {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Taxa de entrega</span>
-                    <span className="font-medium">R$ 5,00</span>
+                    <span className="font-medium">{formatCurrency(5, "EUR")}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Pedido mínimo</span>
-                    <span className="font-medium">R$ 30,00</span>
+                    <span className="font-medium">{formatCurrency(30, "EUR")}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Tempo estimado</span>

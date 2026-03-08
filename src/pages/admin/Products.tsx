@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/currency";
 import { Plus, Pencil, Trash2, Package } from "lucide-react";
 import {
   useCreateProductMutation,
@@ -158,7 +159,7 @@ const Products = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price" className="text-xs font-black uppercase tracking-widest text-primary">Preço (R$)</Label>
+                  <Label htmlFor="price" className="text-xs font-black uppercase tracking-widest text-primary">Preço</Label>
                   <Input
                     id="price"
                     type="number"
@@ -240,7 +241,10 @@ const Products = () => {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <p className="font-black text-lg tracking-tighter">R$ {product.price.toFixed(2)}</p>
+                      <p className="font-black text-lg tracking-tighter">{formatCurrency(product.price, product.currency_code || "EUR")}</p>
+                      {product.status && (
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">{product.status}</p>
+                      )}
                     </TableCell>
                     <TableCell>
                       {product.in_stock ? (

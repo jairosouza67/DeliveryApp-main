@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "import:foodi-ml": "tsx scripts/import-foodi-ml.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

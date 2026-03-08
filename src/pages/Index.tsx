@@ -12,20 +12,12 @@ import { useEffect, useState } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
-import { getFeaturedProductsCached, refreshFeaturedProducts } from "@/lib/productsApi";
-
-interface Product {
-  id: string;
-  name: string;
-  type: string;
-  price: number;
-  in_stock: boolean;
-  image_url?: string;
-}
+import { formatCurrency } from "@/lib/currency";
+import { getFeaturedProductsCached, refreshFeaturedProducts, type ProductRecord } from "@/lib/productsApi";
 
 const Index = () => {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>(() => {
-    return (getFeaturedProductsCached() as Product[] | null) ?? [];
+  const [featuredProducts, setFeaturedProducts] = useState<ProductRecord[]>(() => {
+    return getFeaturedProductsCached() ?? [];
   });
   const { addItem } = useCart();
   const { toast } = useToast();
@@ -36,7 +28,7 @@ const Index = () => {
     refreshFeaturedProducts()
       .then((fresh) => {
         if (cancelled) return;
-        setFeaturedProducts(fresh as Product[]);
+        setFeaturedProducts(fresh);
       })
       .catch(() => {
         // Silencioso: home continua funcionando mesmo sem destaques.
@@ -47,16 +39,18 @@ const Index = () => {
     };
   }, []);
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: ProductRecord) => {
     addItem({
       id: product.id,
       name: product.name,
       type: product.type,
       price: product.price,
+      imageUrl: product.image_url || undefined,
+      currencyCode: product.currency_code || "EUR",
     });
     toast({
       title: "Produto adicionado! 🍺",
-      description: `${product.name} foi adicionado ao carrinho.`,
+      description: `${product.name} • ${formatCurrency(product.price, product.currency_code || "EUR")}`,
     });
   };
 
@@ -138,6 +132,14 @@ const Index = () => {
                       price={product.price}
                       imageUrl={product.image_url}
                       inStock={product.in_stock}
+                      currencyCode={product.currency_code}
+                      brand={product.brand}
+                      volumeLabel={product.volume_label}
+                      packageType={product.package_type}
+                      alcoholic={product.alcoholic}
+                      sourceSection={product.source_section}
+                      priceReferenceLabel={product.price_reference_label}
+                      priceSource={product.price_source}
                       onAddToCart={() => handleAddToCart(product)}
                     />
                   ))}

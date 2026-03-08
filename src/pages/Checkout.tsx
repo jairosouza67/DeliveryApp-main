@@ -24,6 +24,7 @@ import {
     Package
 } from "lucide-react";
 import { useState } from "react";
+import { formatCurrency } from "@/lib/currency";
 
 const Checkout = () => {
     const { items, total, itemCount, clearCart } = useCart();
@@ -33,6 +34,7 @@ const Checkout = () => {
     const [step, setStep] = useState(1);
     const [paymentMethod, setPaymentMethod] = useState("pix");
     const [deliveryType, setDeliveryType] = useState("delivery");
+    const currencyCode = items[0]?.currencyCode ?? "EUR";
 
     // Form fields
     const [formData, setFormData] = useState({
@@ -49,9 +51,7 @@ const Checkout = () => {
     const deliveryFee = deliveryType === "delivery" ? 5.00 : 0;
     const grandTotal = total + deliveryFee;
 
-    const formatPrice = (value: number) => {
-        return `R$ ${value.toFixed(2).replace('.', ',')}`;
-    };
+    const formatPrice = (value: number) => formatCurrency(value, currencyCode);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
