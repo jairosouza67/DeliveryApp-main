@@ -6,6 +6,10 @@ type ProductRow = {
   name: string;
   type: string;
   image_url: string | null;
+  source_product_name: string | null;
+  source_description: string | null;
+  source_section: string | null;
+  source_image_path: string | null;
 };
 
 type DatasetRow = Record<string, string>;
@@ -27,6 +31,63 @@ type MatchResult = {
 const DATASET_URL = "https://glovo-products-dataset-d1c9720d.s3.amazonaws.com/glovo-foodi-ml-dataset.csv";
 const IMAGE_BASE_URL = "https://glovo-products-dataset-d1c9720d.s3.amazonaws.com";
 const PREFERRED_COUNTRIES = new Set(["PT", "ES", "BR"]);
+const MANUAL_FALLBACK_IMAGES: Record<string, string> = {
+  "Almadén Tinto Suave 750ml": "https://images.unsplash.com/photo-1586370434639-0fe43b2d32e6?w=400&h=400&fit=crop",
+  "Brahma Duplo Malte 350ml": "https://images.unsplash.com/photo-1571613316887-6f8d5cbf7ef7?w=400&h=400&fit=crop",
+  "Chandon Brut 750ml": "https://images.unsplash.com/photo-1592845820419-f484ae079041?w=400&h=400&fit=crop",
+  "Colorado Appia 600ml": "https://images.unsplash.com/photo-1619410283995-43d9134e7656?w=400&h=400&fit=crop",
+  "Gelo Pacote 3kg": "https://images.unsplash.com/photo-1559827291-72ee739d0d9a?w=400&h=400&fit=crop",
+  "Kit Churrasco - 12 Cervejas": "https://images.unsplash.com/photo-1575367439058-6096bb9cf5e2?w=400&h=400&fit=crop",
+  "Kit Festa 24 Cervejas": "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400&h=400&fit=crop",
+  "Kit Vinho & Queijo": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop",
+  "Mike's Hard Lemonade 275ml": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=400&h=400&fit=crop",
+  "Petra Origem 600ml": "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=400&h=400&fit=crop",
+  "Sangue de Boi 1L": "https://images.unsplash.com/photo-1474722883778-792e7990302f?w=400&h=400&fit=crop",
+  "Whisky Chivas 12 anos 1L": "https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=400&h=400&fit=crop",
+};
+const STOP_WORDS = new Set([
+  "bebida",
+  "bebidas",
+  "cerveja",
+  "cervejas",
+  "refrigerante",
+  "refrigerantes",
+  "vinho",
+  "vinhos",
+  "destilado",
+  "destilados",
+  "drink",
+  "drinks",
+  "com",
+  "sem",
+  "de",
+  "do",
+  "da",
+  "em",
+  "para",
+  "the",
+  "and",
+]);
+
+const TYPE_KEYWORDS: Record<string, string[]> = {
+  cervejas: ["beer", "beers", "cerveja", "cervejas", "cerveza", "cervezas", "lager", "ipa", "stout", "pilsen", "pilsen", "ale", "hefe", "weiss"],
+  vinhos: ["wine", "wines", "vino", "vinos", "vinho", "vinhos", "rose", "rosee", "rose", "rosado", "merlot", "cabernet", "sauvignon", "prosecco", "champagne", "espumante", "espumantes"],
+  destilados: ["whisky", "whiskey", "vodka", "gin", "ginebra", "rum", "ron", "tequila", "mezcal", "cachaca", "cachaca", "aguardiente", "aguardientes", "brandy", "cognac", "liqueur", "liqueurs", "licor", "licores", "spirits", "spirit", "spirt", "spirtoase"],
+  drinks: ["cocktail", "cocktails", "drink", "drinks", "spritz", "mojito", "margarita", "caipirinha", "tonic", "tonica", "tonica", "cooler", "hard lemonade", "kit cocktail", "cocktail kit"],
+  refrigerantes: ["soda", "soft drink", "soft drinks", "refrigerante", "refrigerantes", "cola", "tonic", "tonica", "tonica", "agua", "water", "sparkling", "juice", "juices", "suco", "sucos", "nectar", "sprite", "fanta", "coca cola", "schweppes", "del valle"],
+};
+
+const GENERIC_BEVERAGE_KEYWORDS = Array.from(new Set([
+  ...Object.values(TYPE_KEYWORDS).flat(),
+  "bebida",
+  "bebidas",
+  "beverage",
+  "beverages",
+  "alcoolica",
+  "alcoolicas",
+  "alcoholic",
+  "alcoholicas",
+]));
 
 function normalizeText(value: string | null | undefined): string {
   return (value ?? "")
@@ -39,6 +100,111 @@ function normalizeText(value: string | null | undefined): string {
 
 function stripVolume(value: string): string {
   return value.replace(/\b\d+(?:[.,]\d+)?\s?(ml|cl|l|lt|litro|litros|oz|g|kg)\b/gi, " ").replace(/\s+/g, " ").trim();
+}
+
+function extractVolumeMl(value: string | null | undefined): number | null {
+  const normalized = normalizeText(value).replace(/,/g, ".");
+  const match = normalized.match(/(\d+(?:\.\d+)?)\s?(ml|cl|l|lt|litro|litros)\b/);
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  if (Number.isNaN(amount)) return null;
+
+  const unit = match[2];
+  if (unit === "ml") return amount;
+  if (unit === "cl") return amount * 10;
+  return amount * 1000;
+}
+
+function extractPackageType(value: string | null | undefined): "lata" | "garrafa" | "long-neck" | null {
+  const normalized = normalizeText(value);
+  if (normalized.includes("long neck") || normalized.includes("longneck")) return "long-neck";
+  if (normalized.includes("lata") || normalized.includes("can")) return "lata";
+  if (normalized.includes("garrafa") || normalized.includes("bottle") || normalized.includes("pet")) return "garrafa";
+  return null;
+}
+
+function buildTokenSet(value: string | null | undefined): Set<string> {
+  return new Set(
+    normalizeText(stripVolume(value ?? ""))
+      .split(" ")
+      .filter((token) => token.length > 2 && !STOP_WORDS.has(token)),
+  );
+}
+
+function getTypeKeywords(type: string): string[] {
+  const normalized = normalizeText(type);
+  if (normalized.includes("cervej")) return TYPE_KEYWORDS.cervejas;
+  if (normalized.includes("vinh")) return TYPE_KEYWORDS.vinhos;
+  if (normalized.includes("destil")) return TYPE_KEYWORDS.destilados;
+  if (normalized.includes("drink")) return TYPE_KEYWORDS.drinks;
+  if (normalized.includes("refriger")) return TYPE_KEYWORDS.refrigerantes;
+  return [];
+}
+
+function hasKeywordMatch(text: string, keywords: string[]): boolean {
+  return keywords.some((keyword) => text.includes(keyword));
+}
+
+function isLikelyBeverageRow(product: ProductRow, row: DatasetRow): boolean {
+  const combined = normalizeText([
+    row.collection_section,
+    row.product_name,
+    row.product_description,
+    row.store_name,
+  ].join(" "));
+
+  return hasKeywordMatch(combined, GENERIC_BEVERAGE_KEYWORDS)
+    || hasKeywordMatch(combined, getTypeKeywords(product.type));
+}
+
+function countTokenOverlap(left: Set<string>, right: Set<string>): number {
+  let overlap = 0;
+  for (const token of left) {
+    if (right.has(token)) overlap += 1;
+  }
+  return overlap;
+}
+
+function hasStrongNameEvidence(productName: string, remoteName: string): boolean {
+  const normalizedProduct = normalizeText(stripVolume(productName));
+  const normalizedRemote = normalizeText(stripVolume(remoteName));
+  if (!normalizedProduct || !normalizedRemote) return false;
+  if (normalizedProduct === normalizedRemote) return true;
+
+  const productTokens = buildTokenSet(productName);
+  const remoteTokens = buildTokenSet(remoteName);
+  const overlap = countTokenOverlap(productTokens, remoteTokens);
+
+  if (overlap >= 2) return true;
+  if (productTokens.size <= 1 && overlap >= 1) return true;
+
+  return false;
+}
+
+function isSuspiciousAssignment(product: ProductRow): boolean {
+  const remoteName = product.source_product_name ?? "";
+  const remoteDescription = product.source_description ?? "";
+  const remoteSection = normalizeText(product.source_section);
+  const sourceText = `${remoteName} ${remoteDescription}`.trim();
+  const localVolume = extractVolumeMl(product.name);
+  const remoteVolume = extractVolumeMl(sourceText);
+  const localPackage = extractPackageType(product.name);
+  const remotePackage = extractPackageType(sourceText);
+
+  if (!product.source_image_path) return false;
+  if (!hasStrongNameEvidence(product.name, remoteName)) return true;
+  if (!hasKeywordMatch(remoteSection, GENERIC_BEVERAGE_KEYWORDS) && !hasKeywordMatch(remoteSection, getTypeKeywords(product.type))) {
+    return true;
+  }
+  if (localPackage && remotePackage && localPackage !== remotePackage) return true;
+  if (localVolume && remoteVolume) {
+    const delta = Math.abs(localVolume - remoteVolume);
+    const ratio = Math.max(localVolume, remoteVolume) / Math.min(localVolume, remoteVolume);
+    if (delta >= 700 && ratio >= 1.8) return true;
+  }
+
+  return false;
 }
 
 function buildSearchPhrases(productName: string): string[] {
@@ -171,20 +337,49 @@ function scoreMatch(product: ProductRow, phrases: string[], row: DatasetRow): nu
   const remoteName = normalizeText(row.product_name);
   const section = normalizeText(row.collection_section);
   const type = normalizeText(product.type);
+  const localTokens = buildTokenSet(product.name);
+  const remoteTokens = buildTokenSet(row.product_name);
+  const tokenOverlap = countTokenOverlap(localTokens, remoteTokens);
+
+  if (!row.product_name || !row.s3_path) return Number.NEGATIVE_INFINITY;
+  if (!isLikelyBeverageRow(product, row)) return Number.NEGATIVE_INFINITY;
+  if (!hasStrongNameEvidence(product.name, row.product_name)) return Number.NEGATIVE_INFINITY;
 
   let score = 0;
   for (const phrase of phrases) {
     if (!phrase) continue;
     if (remoteName === phrase) score += 120;
-    else if (remoteName.includes(phrase)) score += 70;
+    else if (phrase.includes(" ") && remoteName.includes(phrase)) score += 70;
   }
 
+  score += tokenOverlap * 22;
+
   if (PREFERRED_COUNTRIES.has((row.country_code || "").toUpperCase())) score += 12;
-  if (section.includes("bebid") || section.includes("soda") || section.includes("beer") || section.includes("vin") || section.includes("drink")) score += 10;
-  if (type.includes("refriger") && (section.includes("soda") || section.includes("bebid"))) score += 8;
-  if (type.includes("cervej") && section.includes("beer")) score += 8;
-  if (type.includes("vinho") && (section.includes("wine") || section.includes("vin"))) score += 8;
-  if (type.includes("destil") && (section.includes("drink") || section.includes("spirits") || section.includes("bebid"))) score += 4;
+  if (hasKeywordMatch(section, GENERIC_BEVERAGE_KEYWORDS)) score += 14;
+  if (hasKeywordMatch(section, getTypeKeywords(product.type))) score += 12;
+  if (type.includes("refriger") && hasKeywordMatch(section, TYPE_KEYWORDS.refrigerantes)) score += 8;
+  if (type.includes("cervej") && hasKeywordMatch(section, TYPE_KEYWORDS.cervejas)) score += 8;
+  if (type.includes("vinho") && hasKeywordMatch(section, TYPE_KEYWORDS.vinhos)) score += 8;
+  if (type.includes("destil") && hasKeywordMatch(section, TYPE_KEYWORDS.destilados)) score += 8;
+
+  const localVolume = extractVolumeMl(product.name);
+  const remoteVolume = extractVolumeMl(`${row.product_name || ""} ${row.product_description || ""}`);
+  if (localVolume && remoteVolume) {
+    const delta = Math.abs(localVolume - remoteVolume);
+    const ratio = Math.max(localVolume, remoteVolume) / Math.min(localVolume, remoteVolume);
+
+    if (delta <= Math.max(120, localVolume * 0.12)) score += 32;
+    else if (delta <= Math.max(250, localVolume * 0.3)) score += 6;
+    else if (delta >= 700 && ratio >= 1.8) return Number.NEGATIVE_INFINITY;
+    else score -= 40;
+  }
+
+  const localPackage = extractPackageType(product.name);
+  const remotePackage = extractPackageType(`${row.product_name || ""} ${row.product_description || ""}`);
+  if (localPackage && remotePackage) {
+    if (localPackage === remotePackage) score += 18;
+    else return Number.NEGATIVE_INFINITY;
+  }
 
   return score;
 }
@@ -197,7 +392,7 @@ async function main(): Promise<void> {
   const supabase = createClient(env.url, key);
   const productsResult = await supabase
     .from("products")
-    .select("id,name,type,image_url")
+    .select("id,name,type,image_url,source_product_name,source_description,source_section,source_image_path")
     .order("name");
 
   if (productsResult.error) throw productsResult.error;
@@ -226,7 +421,7 @@ async function main(): Promise<void> {
     for (const [productId, product] of remaining) {
       const phrases = searchMap.get(productId) ?? [];
       const score = scoreMatch(product, phrases, row);
-      if (score < 80) continue;
+      if (score < 110) continue;
 
       const current = bestMatches.get(productId);
       if (!current || score > current.score) {
@@ -270,10 +465,35 @@ async function main(): Promise<void> {
     updated += 1;
   }
 
+  let cleared = 0;
+  for (const product of products) {
+    if (bestMatches.has(product.id)) continue;
+    if (!isSuspiciousAssignment(product)) continue;
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        image_url: MANUAL_FALLBACK_IMAGES[product.name] ?? null,
+        source_dataset: null,
+        source_product_name: null,
+        source_section: null,
+        source_description: null,
+        source_country_code: null,
+        source_city_code: null,
+        source_store_name: null,
+        source_image_path: null,
+      })
+      .eq("id", product.id);
+
+    if (error) throw error;
+    cleared += 1;
+  }
+
   console.log(JSON.stringify({
     products: products.length,
     matched: bestMatches.size,
     updated,
+    cleared,
     sample: [...bestMatches.values()].slice(0, 10),
   }, null, 2));
 }
